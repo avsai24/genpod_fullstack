@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package agent;
+
+message AgentRequest {
+  string user_id = 1;
+  string tab = 2; // "metrics", "logs", etc.
+}
+
+message AgentResponse {
+  string type = 1;
+  string json_payload = 2;
+}
+
+service AgentService {
+  rpc StreamData(AgentRequest) returns (stream AgentResponse);
+}
