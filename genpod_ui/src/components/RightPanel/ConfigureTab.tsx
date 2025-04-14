@@ -1,53 +1,55 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Settings, Terminal, Server } from 'lucide-react'
 
-type ConfigData = Record<string, string>
+type ConfigData = {
+  max_users: string
+  region: string
+  logging_enabled: boolean
+}
 
 export default function ConfigureTab() {
   const [config, setConfig] = useState<ConfigData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    async function fetchConfig() {
+    const eventSource = new EventSource('/api/configure')
+
+    eventSource.onmessage = (event) => {
       try {
-        const res = await fetch('/api/configure')
-        const json = await res.json()
-        setConfig(json)
+        const data = JSON.parse(event.data)
+        setConfig(data.configure)
+        setIsConnected(true)
       } catch (err) {
-        console.error('Failed to load config', err)
-        setConfig(null)
-      } finally {
-        setLoading(false)
+        console.error('❌ Failed to parse configure data:', err)
       }
     }
 
-    fetchConfig()
+    eventSource.onerror = (err) => {
+      console.error('🔌 SSE error:', err)
+      eventSource.close()
+      setIsConnected(false)
+    }
+
+    return () => eventSource.close()
   }, [])
 
-  if (loading) {
-    return <div className="p-4 text-sm text-gray-500">Loading configuration...</div>
-  }
-
-  if (!config) {
-    return <div className="p-4 text-sm text-red-500">Failed to load configuration</div>
-  }
-
   return (
-    <div className="p-4 space-y-4">
-      {Object.entries(config).map(([key, value]) => (
-        <div
-          key={key}
-          className="rounded-xl border bg-white p-4 shadow-sm flex items-start gap-3"
-        >
-          <Settings className="text-blue-500" size={20} />
-          <div className="text-sm text-gray-700">
-            <strong className="capitalize">{key}:</strong>{' '}
-            <span className="ml-1 text-gray-900">{value}</span>
-          </div>
-        </div>
-      ))}
+    <div className="p-6 space-y-4 text-sm text-gray-900">
+      <h2 className="text-lg font-semibold">🛠️ Configuration</h2>
+      {isConnected ? (
+        config ? (
+          <ul className="space-y-2">
+            <li><strong>Max Users:</strong> {config.max_users}</li>
+            <li><strong>Region:</strong> {config.region}</li>
+            <li><strong>Logging Enabled:</strong> {config.logging_enabled ? 'Yes' : 'No'}</li>
+          </ul>
+        ) : (
+          <p>Waiting for configuration...</p>
+        )
+      ) : (
+        <p className="text-gray-500">Connecting to server...</p>
+      )}
     </div>
   )
 }

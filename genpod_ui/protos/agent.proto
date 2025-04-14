@@ -2,9 +2,24 @@ syntax = "proto3";
 
 package agent;
 
+// ----- Chat Service -----
+message ChatRequest {
+  string user = 1;
+  string message = 2;
+}
+
+message ChatResponse {
+  string reply = 1;
+}
+
+service ChatService {
+  rpc SendMessageStream(ChatRequest) returns (stream ChatResponse);
+}
+
+// ----- Agent Service -----
 message AgentRequest {
   string user_id = 1;
-  string tab = 2; // "metrics", "logs", etc.
+  string tab = 2;
 }
 
 message AgentResponse {

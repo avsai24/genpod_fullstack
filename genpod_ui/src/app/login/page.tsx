@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
@@ -10,6 +10,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const router = useRouter()
+
+  // ✅ Wait for session to be ready before redirecting
+  const waitForSession = async (retries = 10) => {
+    for (let i = 0; i < retries; i++) {
+      const session = await getSession()
+      if (session) return true
+      await new Promise((res) => setTimeout(res, 200))
+    }
+    return false
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,7 +32,9 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Invalid credentials')
     } else {
-      router.push('/')
+      const ready = await waitForSession()
+      if (ready) router.push('/')
+      else setError('Login failed. Please try again.')
     }
   }
 

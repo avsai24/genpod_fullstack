@@ -21,41 +21,39 @@ const client = new AgentService(
 )
 
 export async function GET() {
-  let isControllerOpen = true
+  let controllerRef: ReadableStreamDefaultController | null = null
+  let isClosed = false
 
   const stream = new ReadableStream({
     start(controller) {
+      controllerRef = controller
       const call = client.StreamData({ user_id: '123', tab: 'metrics' })
 
       call.on('data', (chunk: any) => {
-        if (!isControllerOpen) return
+        if (isClosed || !controllerRef) return
 
         try {
           const parsed = JSON.parse(chunk.json_payload)
           const payload = JSON.stringify({ metrics: parsed })
-          controller.enqueue(`data: ${payload}\n\n`)
+          controllerRef.enqueue(`data: ${payload}\n\n`)
         } catch (e) {
           console.error('❌ Failed to parse payload:', e)
         }
       })
 
       call.on('end', () => {
-        if (isControllerOpen) {
-          isControllerOpen = false
-          controller.close()
-        }
+        isClosed = true
+        controllerRef?.close()
       })
 
       call.on('error', (err: any) => {
         console.error('❌ gRPC stream error:', err)
-        if (isControllerOpen) {
-          isControllerOpen = false
-          controller.close()
-        }
+        isClosed = true
+        controllerRef?.close()
       })
     },
     cancel() {
-      isControllerOpen = false
+      isClosed = true
     },
   })
 

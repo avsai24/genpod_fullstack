@@ -1,41 +1,65 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Terminal } from 'lucide-react'
+
+type LogEntry = {
+  timestamp: string
+  level: string
+  message: string
+}
 
 export default function LogsTab() {
-  const [logs, setLogs] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [connected, setConnected] = useState(false)
 
   useEffect(() => {
-    async function fetchLogs() {
-      try {
-        const res = await fetch('/api/logs')
-        const data = await res.json()
-        setLogs(data.logs || [])
-      } catch (err) {
-        console.error('Failed to load logs:', err)
-        setError(true)
-      } finally {
-        setLoading(false)
-      }
+    const eventSource = new EventSource('/api/logs')
+
+    eventSource.onmessage = (event) => {
+      const { logs: newLogs } = JSON.parse(event.data)
+      setLogs((prev) => [...prev, ...newLogs].slice(-50)) // keep last 50 logs
     }
 
-    fetchLogs()
+    eventSource.onerror = () => {
+      console.error('🔌 SSE logs error')
+      eventSource.close()
+      setConnected(false)
+    }
+
+    eventSource.onopen = () => {
+      setConnected(true)
+    }
+
+    return () => {
+      eventSource.close()
+    }
   }, [])
 
-  if (loading) return <div className="p-4 text-sm text-gray-500">Loading logs...</div>
-  if (error) return <div className="p-4 text-sm text-red-500">Failed to fetch logs.</div>
-
   return (
-    <div className="p-4 space-y-2 font-mono text-sm text-gray-800 bg-white">
-      {logs.map((log, i) => (
-        <div key={i} className="bg-gray-100 p-2 rounded border border-gray-200 shadow-sm flex gap-2 items-start">
-          <Terminal className="w-4 h-4 text-blue-500 mt-1" />
-          <span>{log}</span>
-        </div>
-      ))}
+    <div className="p-4 space-y-2 text-sm text-gray-800">
+      <h2 className="text-lg font-semibold mb-2">📜 Live Logs</h2>
+
+      {connected ? (
+        <ul className="space-y-1 max-h-[500px] overflow-y-auto">
+          {logs.map((log, idx) => (
+            <li
+              key={idx}
+              className={`border rounded p-2 bg-white shadow-sm ${
+                log.level === 'ERROR'
+                  ? 'border-red-500 text-red-600'
+                  : log.level === 'WARN'
+                  ? 'border-yellow-500 text-yellow-600'
+                  : 'border-gray-300'
+              }`}
+            >
+              <span className="font-mono text-xs text-gray-500">{log.timestamp}</span>{' '}
+              <span className="uppercase font-semibold">{log.level}</span>: {log.message}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500 italic">Disconnected. Trying to reconnect...</p>
+      )}
     </div>
   )
 }
