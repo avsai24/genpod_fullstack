@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ConfigurationTab from './Configuration/ConfigurationTab'
+import SettingsForm from './Configuration/SettingsForm'
 
 type ConfigData = {
   max_users: string
@@ -8,9 +10,12 @@ type ConfigData = {
   logging_enabled: boolean
 }
 
+type SubTab = 'Prompt' | 'Settings'
+
 export default function ConfigureTab() {
   const [config, setConfig] = useState<ConfigData | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [selectedTab, setSelectedTab] = useState<SubTab>('Prompt')
 
   useEffect(() => {
     const eventSource = new EventSource('/api/configure')
@@ -35,21 +40,39 @@ export default function ConfigureTab() {
   }, [])
 
   return (
-    <div className="p-6 space-y-4 text-sm text-gray-900">
-      <h2 className="text-lg font-semibold">🛠️ Configuration</h2>
-      {isConnected ? (
-        config ? (
-          <ul className="space-y-2">
-            <li><strong>Max Users:</strong> {config.max_users}</li>
-            <li><strong>Region:</strong> {config.region}</li>
-            <li><strong>Logging Enabled:</strong> {config.logging_enabled ? 'Yes' : 'No'}</li>
-          </ul>
-        ) : (
-          <p>Waiting for configuration...</p>
-        )
-      ) : (
-        <p className="text-gray-500">Connecting to server...</p>
-      )}
+    <div className="w-full h-full px-6 py-8 bg-gray-50 overflow-auto">
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* Sub-tab switcher */}
+        <div className="flex gap-4 border-b border-gray-200 px-6 pt-4">
+          {(['Prompt', 'Settings'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSelectedTab(tab)}
+              className={`py-2 px-4 text-sm font-medium rounded-t-md border-b-2 transition-all
+                ${
+                  selectedTab === tab
+                    ? 'text-blue-600 border-blue-500 bg-white'
+                    : 'text-gray-500 border-transparent hover:text-blue-500 hover:bg-gray-50'
+                }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content area */}
+        <div className="px-6 py-6">
+          {selectedTab === 'Prompt' ? (
+            <ConfigurationTab
+              selectedTab={selectedTab}
+              config={config}
+              isConnected={isConnected}
+            />
+          ) : (
+            <SettingsForm />
+          )}
+        </div>
+      </div>
     </div>
   )
 }
