@@ -1,65 +1,55 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
-type LogEntry = {
-  timestamp: string
-  level: string
-  message: string
-}
+import { useEffect, useRef } from 'react'
+import { useLogStore } from '@/state/logStore'
+import { startLogStream } from '@/state/logStream'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function LogsTab() {
-  const [logs, setLogs] = useState<LogEntry[]>([])
-  const [connected, setConnected] = useState(false)
+  const logs = useLogStore((state) => state.logs)  // ✅ Zustand hook
+  const scrollRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/logs')
-
-    eventSource.onmessage = (event) => {
-      const { logs: newLogs } = JSON.parse(event.data)
-      setLogs((prev) => [...prev, ...newLogs].slice(-50)) // keep last 50 logs
-    }
-
-    eventSource.onerror = () => {
-      console.error('🔌 SSE logs error')
-      eventSource.close()
-      setConnected(false)
-    }
-
-    eventSource.onopen = () => {
-      setConnected(true)
-    }
-
-    return () => {
-      eventSource.close()
-    }
+    startLogStream() // SSE + gRPC log streaming
   }, [])
 
-  return (
-    <div className="p-4 space-y-2 text-sm text-gray-800">
-      <h2 className="text-lg font-semibold mb-2">📜 Live Logs</h2>
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+  }, [logs])
 
-      {connected ? (
-        <ul className="space-y-1 max-h-[500px] overflow-y-auto">
+  return (
+    <div className="w-full h-full flex flex-col bg-black text-white font-mono border border-gray-800 rounded overflow-hidden">
+      <div className="p-3 border-b border-gray-700 text-sm font-semibold text-white bg-gray-900">
+        🪵 Real-Time Agent Logs
+      </div>
+
+      <ul
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto text-xs bg-black px-3 py-2 space-y-1"
+      >
+        <AnimatePresence initial={false}>
           {logs.map((log, idx) => (
-            <li
-              key={idx}
-              className={`border rounded p-2 bg-white shadow-sm ${
-                log.level === 'ERROR'
-                  ? 'border-red-500 text-red-600'
-                  : log.level === 'WARN'
-                  ? 'border-yellow-500 text-yellow-600'
-                  : 'border-gray-300'
-              }`}
+            <motion.li
+              key={`${log.timestamp}-${idx}`}
+              initial={{ opacity: 0, y: 2 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="grid grid-cols-[90px_60px_1fr] gap-4 border-b border-gray-800 py-1"
             >
-              <span className="font-mono text-xs text-gray-500">{log.timestamp}</span>{' '}
-              <span className="uppercase font-semibold">{log.level}</span>: {log.message}
-            </li>
+              <span className="text-gray-500">{log.timestamp}</span>
+              <span className={
+                log.level === 'ERROR' ? 'text-red-400 font-semibold'
+                : log.level === 'WARN' ? 'text-yellow-300 font-semibold'
+                : 'text-green-400 font-semibold'
+              }>
+                [{log.level}]
+              </span>
+              <span className="text-gray-100">{log.message}</span>
+            </motion.li>
           ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500 italic">Disconnected. Trying to reconnect...</p>
-      )}
+        </AnimatePresence>
+      </ul>
     </div>
   )
 }

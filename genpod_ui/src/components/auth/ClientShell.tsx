@@ -1,13 +1,18 @@
-// src/components/auth/ClientShell.tsx
 'use client'
 
+import { useEffect } from 'react'
 import SplitLayout from '@/components/layouts/SplitLayout'
 import LeftPanel from '@/components/LeftPanel'
 import RightPanel from '@/components/RightPanel'
 import AuthGuard from '@/app/auth'
 import UserMenu from '@/components/auth/UserMenu'
+import { startLogStream } from '@/state/logStream' // ✅ Import the log stream starter
 
 export default function ClientShell() {
+  useEffect(() => {
+    startLogStream() // ✅ Starts log stream globally
+  }, [])
+
   return (
     <AuthGuard>
       <div className="flex flex-col h-screen">

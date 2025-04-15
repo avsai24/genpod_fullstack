@@ -10,6 +10,7 @@ message ChatRequest {
 
 message ChatResponse {
   string reply = 1;
+
 }
 
 service ChatService {
@@ -29,4 +30,14 @@ message AgentResponse {
 
 service AgentService {
   rpc StreamData(AgentRequest) returns (stream AgentResponse);
+  rpc StreamLogsFromFile(LogRequest) returns (stream LogLine); // ✅ NEW
+}
+
+// ----- Log Streaming -----
+message LogLine {
+  string line = 1;
+}
+
+message LogRequest {
+  string user_id = 1;
 }
