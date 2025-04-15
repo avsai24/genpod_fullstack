@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import agent_pb2 as agent__pb2
+import server.agent_pb2 as agent__pb2
 
 
 class ChatServiceStub(object):
@@ -80,6 +80,11 @@ class AgentServiceStub(object):
                 request_serializer=agent__pb2.AgentRequest.SerializeToString,
                 response_deserializer=agent__pb2.AgentResponse.FromString,
                 )
+        self.StreamLogsFromFile = channel.unary_stream(
+                '/agent.AgentService/StreamLogsFromFile',
+                request_serializer=agent__pb2.LogRequest.SerializeToString,
+                response_deserializer=agent__pb2.LogLine.FromString,
+                )
 
 
 class AgentServiceServicer(object):
@@ -91,6 +96,13 @@ class AgentServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def StreamLogsFromFile(self, request, context):
+        """✅ NEW
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_AgentServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -98,6 +110,11 @@ def add_AgentServiceServicer_to_server(servicer, server):
                     servicer.StreamData,
                     request_deserializer=agent__pb2.AgentRequest.FromString,
                     response_serializer=agent__pb2.AgentResponse.SerializeToString,
+            ),
+            'StreamLogsFromFile': grpc.unary_stream_rpc_method_handler(
+                    servicer.StreamLogsFromFile,
+                    request_deserializer=agent__pb2.LogRequest.FromString,
+                    response_serializer=agent__pb2.LogLine.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -123,5 +140,22 @@ class AgentService(object):
         return grpc.experimental.unary_stream(request, target, '/agent.AgentService/StreamData',
             agent__pb2.AgentRequest.SerializeToString,
             agent__pb2.AgentResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def StreamLogsFromFile(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/agent.AgentService/StreamLogsFromFile',
+            agent__pb2.LogRequest.SerializeToString,
+            agent__pb2.LogLine.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

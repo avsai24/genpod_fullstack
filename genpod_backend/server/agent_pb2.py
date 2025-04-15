@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\",\n\x0b\x43hatRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x1d\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\",\n\x0c\x41gentRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0b\n\x03tab\x18\x02 \x01(\t\"3\n\rAgentResponse\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x14\n\x0cjson_payload\x18\x02 \x01(\t2M\n\x0b\x43hatService\x12>\n\x11SendMessageStream\x12\x12.agent.ChatRequest\x1a\x13.agent.ChatResponse0\x01\x32I\n\x0c\x41gentService\x12\x39\n\nStreamData\x12\x13.agent.AgentRequest\x1a\x14.agent.AgentResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\",\n\x0b\x43hatRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x1d\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\",\n\x0c\x41gentRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0b\n\x03tab\x18\x02 \x01(\t\"3\n\rAgentResponse\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x14\n\x0cjson_payload\x18\x02 \x01(\t\"\x17\n\x07LogLine\x12\x0c\n\x04line\x18\x01 \x01(\t\"\x1d\n\nLogRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t2M\n\x0b\x43hatService\x12>\n\x11SendMessageStream\x12\x12.agent.ChatRequest\x1a\x13.agent.ChatResponse0\x01\x32\x84\x01\n\x0c\x41gentService\x12\x39\n\nStreamData\x12\x13.agent.AgentRequest\x1a\x14.agent.AgentResponse0\x01\x12\x39\n\x12StreamLogsFromFile\x12\x11.agent.LogRequest\x1a\x0e.agent.LogLine0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -29,8 +29,12 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_AGENTREQUEST']._serialized_end=143
   _globals['_AGENTRESPONSE']._serialized_start=145
   _globals['_AGENTRESPONSE']._serialized_end=196
-  _globals['_CHATSERVICE']._serialized_start=198
-  _globals['_CHATSERVICE']._serialized_end=275
-  _globals['_AGENTSERVICE']._serialized_start=277
-  _globals['_AGENTSERVICE']._serialized_end=350
+  _globals['_LOGLINE']._serialized_start=198
+  _globals['_LOGLINE']._serialized_end=221
+  _globals['_LOGREQUEST']._serialized_start=223
+  _globals['_LOGREQUEST']._serialized_end=252
+  _globals['_CHATSERVICE']._serialized_start=254
+  _globals['_CHATSERVICE']._serialized_end=331
+  _globals['_AGENTSERVICE']._serialized_start=334
+  _globals['_AGENTSERVICE']._serialized_end=466
 # @@protoc_insertion_point(module_scope)
