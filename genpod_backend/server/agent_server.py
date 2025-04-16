@@ -167,11 +167,20 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         else:
             while True:
                 if request.tab == "metrics":
-                    data = [
-                        {"name": "CPU Usage", "value": f"{random.randint(30, 80)}%"},
-                        {"name": "Memory Usage", "value": f"{random.randint(4, 12)} GB"},
-                        {"name": "Uptime", "value": f"{random.randint(1, 10)} days"},
-                    ]
+                    print("[Metrics] Streaming metrics data...")
+                    while True:
+                        data = [
+                            {"name": "CPU Usage", "value": f"{random.randint(30, 80)}%"},
+                            {"name": "Memory Usage", "value": f"{random.randint(4, 12)} GB"},
+                            {"name": "Uptime", "value": f"{random.randint(1, 10)} days"},
+                        ]
+
+                        yield agent_pb2.AgentResponse(
+                            type="metrics",
+                            json_payload=json.dumps(data)
+                        )
+
+                        time.sleep(1)
                 elif request.tab == "configure":
                     data = {
                         "max_users": "1000",
@@ -183,11 +192,26 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                         json_payload=json.dumps(data)
                     )
                 elif request.tab == "insights":
-                    data = {
-                        "top_queries": ["how to use Genpod", "configure AI"],
-                        "error_rate": "1.2%",
-                        "active_users": 182,
-                    }
+                    print("[Insights] Streaming insights data...")
+                    while True:
+                        data = {
+                            "top_queries": random.sample([
+                                "how to use Genpod",
+                                "configure AI agents",
+                                "debug code tab",
+                                "setup prompts",
+                                "track agent memory"
+                            ], 3),
+                            "error_rate": f"{round(random.uniform(0.5, 3.5), 1)}%",
+                            "active_users": random.randint(100, 500),
+                        }
+
+                        yield agent_pb2.AgentResponse(
+                            type="insights",
+                            json_payload=json.dumps(data)
+                        )
+
+                        time.sleep(2)
                 elif request.tab == "preview":
                     data = {
                         "html": "<h1>Welcome</h1><p>This is a preview pane.</p>",
