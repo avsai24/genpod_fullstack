@@ -1,18 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Editor from '@monaco-editor/react'
 import path from 'path-browserify'
+import { useFileStore } from '@/state/fileStore'
 
 export default function MonacoViewer({ filePath }: { filePath: string }) {
-  const [content, setContent] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { fileContents, setFileContent, addEventSource, removeEventSource } = useFileStore()
+  const fileContent = fileContents[filePath]
 
   useEffect(() => {
     if (!filePath) return
 
+    // Create a unique URL for each file
     const es = new EventSource(
-      `/api/files?path=${encodeURIComponent('/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui')}`
+      `/api/files?path=${encodeURIComponent('/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui')}&file=${encodeURIComponent(filePath)}`
     )
 
     const handleContent = (e: MessageEvent) => {
@@ -24,27 +26,35 @@ export default function MonacoViewer({ filePath }: { filePath: string }) {
         console.log('[MonacoViewer] Comparing:', normalizedPayloadPath, 'vs', normalizedFilePath)
 
         if (normalizedPayloadPath === normalizedFilePath) {
-          setContent(payload.content)
-          setError(null)
+          setFileContent(filePath, payload.content, null)
         }
       } catch (err) {
         console.error('[MonacoViewer SSE] Failed to parse payload:', e.data)
+        setFileContent(filePath, null, 'Failed to parse file content')
       }
     }
 
     es.addEventListener('file_content', handleContent)
 
-    es.onerror = (err) => {
-      console.error('[MonacoViewer SSE] error:', err)
-      setError('Failed to stream file content')
+    es.onerror = (error) => {
+      console.error('[MonacoViewer SSE] error:', error)
+      setFileContent(filePath, null, 'Failed to stream file content')
       es.close()
     }
 
-    return () => {
-      es.removeEventListener('file_content', handleContent)
-      es.close()
+    // Add a connection state listener
+    es.onopen = () => {
+      console.log(`[MonacoViewer] SSE connection opened for ${filePath}`)
     }
-  }, [filePath])
+
+    addEventSource(filePath, es)
+
+    return () => {
+      console.log(`[MonacoViewer] Cleaning up SSE connection for ${filePath}`)
+      es.removeEventListener('file_content', handleContent)
+      removeEventSource(filePath)
+    }
+  }, [filePath, setFileContent, addEventSource, removeEventSource])
 
   const detectLanguage = () => {
     const ext = path.extname(filePath).toLowerCase()
@@ -59,19 +69,19 @@ export default function MonacoViewer({ filePath }: { filePath: string }) {
     return 'plaintext'
   }
 
-  if (!content && !error) {
+  if (!fileContent) {
     return <div className="text-sm text-gray-400 p-4">Loading file...</div>
   }
 
-  if (error) {
-    return <div className="text-sm text-red-500 p-4">{error}</div>
+  if (fileContent.error) {
+    return <div className="text-sm text-red-500 p-4">{fileContent.error}</div>
   }
 
   return (
     <Editor
       height="100%"
       language={detectLanguage()}
-      value={content ?? ''}
+      value={fileContent.content ?? ''}
       theme="vs-dark"
       options={{
         readOnly: true,

@@ -1,14 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FileTree from './FileTree'
 import FileTabs, { OpenFile } from './FileTabs'
 import MonacoViewer from './MonacoViewer'
+import { useFileStore } from '@/state/fileStore'
 
 export default function CodeView() {
   const [projectPath, setProjectPath] = useState<string | null>(null)
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
   const [activePath, setActivePath] = useState<string | null>(null)
+  const { cleanup } = useFileStore()
+
+  useEffect(() => {
+    return () => {
+      cleanup()
+    }
+  }, [cleanup])
 
   const handleFileClick = (file: OpenFile) => {
     setOpenFiles((prev) => {
