@@ -18,6 +18,52 @@ genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-pro")
 
 LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), "../logs/agent.log")
+PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+def build_tree(base_path):
+    tree = {}
+
+    for root, dirs, files in os.walk(base_path):
+        dirs[:] = [
+            d for d in dirs
+            if not d.startswith('.') and d not in ['__pycache__', 'node_modules', 'venv', 'env', '.venv']
+        ]
+
+        rel_root = os.path.relpath(root, PROJECT_PATH)
+        parts = rel_root.split(os.sep) if rel_root != '.' else []
+
+        current = tree
+        for part in parts:
+            current = current.setdefault(part, {
+                "type": "folder",
+                "name": part,
+                "path": os.path.join(*parts[:parts.index(part)+1]),
+                "children": {}
+            })["children"]
+
+        for d in dirs:
+            current[d] = {
+                "type": "folder",
+                "name": d,
+                "path": os.path.join(rel_root, d),
+                "children": {}
+            }
+
+        for f in files:
+            if f.startswith('.') or f.lower().endswith(('.log', '.pyc', '.pyo', '.db', '.ico')) or '__pycache__' in root:
+                continue
+            current[f] = {
+                "type": "file",
+                "name": f,
+                "path": os.path.join(rel_root, f)
+            }
+
+    def dict_to_list(node):
+        if "children" in node:
+            node["children"] = [dict_to_list(child) for child in node["children"].values()]
+        return node
+
+    return [dict_to_list(n) for n in tree.values()]
 
 class ChatService(agent_pb2_grpc.ChatServiceServicer):
     def SendMessageStream(self, request, context):
@@ -42,7 +88,6 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                     seen_lines = f.readlines()
 
                 while True:
-                    # Simulate new log entry being written by the agent
                     new_entry = f"New log from agent at {time.strftime('%Y-%m-%d %H:%M:%S')}"
                     with open(LOG_FILE_PATH, "a") as f:
                         f.write(new_entry + "\n")
@@ -58,7 +103,7 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                         json_payload=json.dumps([log_entry])
                     )
 
-                    time.sleep(1)  # every second
+                    time.sleep(1)
             except Exception as e:
                 yield agent_pb2.AgentResponse(
                     type="logs",
@@ -69,6 +114,56 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                     }])
                 )
 
+        elif request.tab == "code":
+                try:
+                    print("[Code] Scanning project path:", PROJECT_PATH)
+                    file_tree = build_tree(PROJECT_PATH)
+
+                    yield agent_pb2.AgentResponse(
+                        type="file_tree",
+                        json_payload=json.dumps(file_tree)
+                    )
+
+                    time.sleep(1)
+
+                    def walk_flat(tree_list):
+                        for node in tree_list:
+                            if node["type"] == "file":
+                                yield node
+                            elif node["type"] == "folder" and "children" in node:
+                                yield from walk_flat(node["children"])
+
+                    for item in walk_flat(file_tree):
+                        abs_path = os.path.join(PROJECT_PATH, item["path"])
+                        try:
+                            with open(abs_path, "r", encoding="utf-8") as f:
+                                content = f.read()
+                            payload = {
+                                "path": item["path"],
+                                "content": content
+                            }
+                            yield agent_pb2.AgentResponse(
+                                type="file_content",
+                                json_payload=json.dumps(payload)
+                            )
+                            time.sleep(0.1)
+                        except Exception as e:
+                            print(f"[Code] Error reading {abs_path}: {e}")
+                            continue
+
+                    # ✅ Keep the gRPC stream open to support SSE on frontend
+                    while True:
+                        time.sleep(60)
+
+                except Exception as e:
+                    print(f"[Code] Streaming error: {e}")
+                    yield agent_pb2.AgentResponse(
+                        type="file_tree",
+                        json_payload=json.dumps([{
+                            "type": "error",
+                            "message": str(e)
+                        }])
+                    )
         else:
             while True:
                 if request.tab == "metrics":
@@ -92,11 +187,6 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                         "top_queries": ["how to use Genpod", "configure AI"],
                         "error_rate": "1.2%",
                         "active_users": 182,
-                    }
-                elif request.tab == "code":
-                    data = {
-                        "status": "waiting",
-                        "message": "Code tab initialized. Waiting for user input.",
                     }
                 elif request.tab == "preview":
                     data = {
