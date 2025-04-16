@@ -1,44 +1,83 @@
-// app/api/files/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
+// src/app/api/files/route.ts
+import { NextRequest } from 'next/server'
 import path from 'path'
+import * as grpc from '@grpc/grpc-js'
+import * as protoLoader from '@grpc/proto-loader'
 
-function readFolder(dirPath: string) {
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true })
-
-  return entries.map((entry) => {
-    const fullPath = path.join(dirPath, entry.name)
-
-    if (entry.isDirectory()) {
-      return {
-        type: 'folder',
-        name: entry.name,
-        path: fullPath,
-        children: readFolder(fullPath),
-      }
-    }
-
-    return {
-      type: 'file',
-      name: entry.name,
-      path: fullPath,
-    }
-  })
-}
+// Load proto
+const PROTO_PATH = path.resolve(process.cwd(), 'protos/agent.proto')
+const packageDef = protoLoader.loadSync(PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true,
+})
+const grpcPackage = grpc.loadPackageDefinition(packageDef) as any
+const grpcClient = new grpcPackage.agent.AgentService(
+  'localhost:50052',
+  grpc.credentials.createInsecure()
+)
 
 export async function GET(req: NextRequest) {
-  const url = new URL(req.url)
-  const folderPath = url.searchParams.get('path')
+  const { readable, writable } = new TransformStream()
+  const writer = writable.getWriter()
+  const encoder = new TextEncoder()
 
-  if (!folderPath) {
-    return NextResponse.json({ error: 'Missing path param' }, { status: 400 })
+  let closed = false
+  const safeClose = async () => {
+    if (!closed) {
+      closed = true
+      try {
+        await writer.close()
+      } catch (err) {
+        console.warn('[SSE] Writer already closed.')
+      }
+    }
   }
 
   try {
-    const tree = readFolder(folderPath)
-    return NextResponse.json(tree)
-  } catch (err) {
-    console.error('File read error:', err)
-    return NextResponse.json({ error: 'Failed to read directory' }, { status: 500 })
+    const call = grpcClient.StreamData(
+      { user_id: 'genpod', tab: 'code' },
+      (err: any) => {
+        if (err) {
+          console.error('gRPC error:', err)
+        }
+      }
+    )
+
+    call.on('data', (message: any) => {
+      const eventType = message.type
+      const payload = message.json_payload
+
+      try {
+        const event = `event: ${eventType}\ndata: ${JSON.stringify(JSON.parse(payload))}\n\n`
+        writer.write(encoder.encode(event))
+      } catch (err) {
+        console.error('[SSE] Failed to stringify payload:', err)
+      }
+    })
+
+    call.on('end', () => {
+      safeClose()
+    })
+
+    call.on('error', async (err: any) => {
+      console.error('❌ gRPC error:', err)
+      writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`))
+      await safeClose()
+    })
+  } catch (err: any) {
+    console.error('Server route error:', err)
+    writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`))
+    await safeClose()
   }
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  })
 }

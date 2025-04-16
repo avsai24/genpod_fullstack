@@ -11,28 +11,43 @@ export type FileNode = {
 }
 
 export default function FileTree({
-    projectPath,
-    onFileClick,
-  }: {
-    projectPath: string
-    onFileClick?: (file: { name: string; path: string }) => void
-  }) {
+  projectPath,
+  onFileClick,
+}: {
+  projectPath: string
+  onFileClick?: (file: { name: string; path: string }) => void
+}) {
   const [tree, setTree] = useState<FileNode[] | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    async function fetchTree() {
+    const es = new EventSource(`/api/files?path=${encodeURIComponent(projectPath)}`)
+
+    const handleFileTree = (e: MessageEvent) => {
       try {
-        const res = await fetch(`/api/files?path=${encodeURIComponent(projectPath)}`)
-        const json = await res.json()
-        setTree(json)
+        const payload = JSON.parse(e.data)
+        setTree(payload)
       } catch (err) {
-        console.error('Failed to load file tree', err)
-        setTree([])
+        console.error('[FileTree SSE] Invalid JSON payload:', e.data)
       }
     }
-    fetchTree()
+
+    es.addEventListener('file_tree', handleFileTree)
+
+    es.onerror = (err: any) => {
+      console.error('[FileTree SSE] error:', {
+        message: err?.message,
+        event: err,
+        readyState: es.readyState,
+      })
+      es.close()
+    }
+
+    return () => {
+      es.removeEventListener('file_tree', handleFileTree)
+      es.close()
+    }
   }, [projectPath])
 
   const toggle = (path: string) => {
@@ -71,7 +86,7 @@ export default function FileTree({
             if (isFolder) {
               toggle(node.path)
             } else {
-              onFileClick?.({ name: node.name, path: node.path })  
+              onFileClick?.({ name: node.name, path: node.path })
             }
           }}
         >
@@ -101,7 +116,9 @@ export default function FileTree({
       />
 
       {!tree ? (
-        <div className="text-center text-gray-400">No project yet. Chat with Genpod to create a project.</div>
+        <div className="text-center text-gray-400">
+          No project yet. Chat with Genpod to create a project.
+        </div>
       ) : (
         filteredTree.map((node) => renderNode(node))
       )}
