@@ -226,4 +226,8 @@ This project is proprietary software. All rights reserved.
 
 ---
 
+<<<<<<< HEAD
 *Note: This documentation is based on the current state of the codebase and may be updated as the project evolves.* 
+=======
+*Note: This documentation is based on the current state of the codebase and may be updated as the project evolves.* 
+>>>>>>> aa161b1cfb50df1ad1ab591e538219bcf65c9c9a
