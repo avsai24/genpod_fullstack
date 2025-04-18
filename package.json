@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "monaco-editor": "^0.52.2"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0"
+  }
+}

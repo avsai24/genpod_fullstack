@@ -5,7 +5,7 @@ from ..crypto_utils import encrypt_token, decrypt_token  # Reusing Fernet logic
 
 router = APIRouter()
 
-DB_PATH = "settings.db"
+DB_PATH = "/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_backend/settings.db"
 
 class PromptInput(BaseModel):
     user_id: str

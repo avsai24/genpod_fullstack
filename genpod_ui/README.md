@@ -1,4 +1,4 @@
-# GenPod UI - AI-Powered Development Interface
+# GenPod UI - AI-Powered Development Interfaces 
 
 ## 📖 Project Overview
 

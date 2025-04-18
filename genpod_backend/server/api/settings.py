@@ -8,7 +8,7 @@ from ..crypto_utils import decrypt_token
 
 router = APIRouter()
 
-DB_PATH = "settings.db"
+DB_PATH = "/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_backend/settings.db"
 
 class SettingsInput(BaseModel):
     user_id: str  # For now, pass a static value like "default_user"
