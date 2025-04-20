@@ -4,31 +4,37 @@
 import { useLogStore } from './logStore'
 import type { LogEntry } from '@/types/logs'
 
-let isStarted = false
+let eventSource: EventSource | null = null
 
-export function startLogStream() {
-  if (isStarted) return
-  isStarted = true
+export function startLogStream(prompt: string, user_id = 'guest') {
+  if (eventSource) return // already started
 
-  const eventSource = new EventSource('/api/logs')
+  eventSource = new EventSource(`/api/agentStream?prompt=${encodeURIComponent(prompt)}&user_id=${user_id}`)
 
-  eventSource.onmessage = (event) => {
+  eventSource.addEventListener('log', (e) => {
     try {
-      const { logs: newLogs } = JSON.parse(event.data)
-      if (Array.isArray(newLogs)) {
-        // ✅ Use zustand store update function
-        useLogStore.getState().addLogs(newLogs as LogEntry[])
-      } else {
-        console.warn('Expected logs array, got:', newLogs)
+      const log = JSON.parse(e.data) as {
+        
+        agent_name: string
+        message: string
+        timestamp: string
       }
-    } catch (err) {
-      console.error('Error parsing logs SSE:', err)
-    }
-  }
+      console.log('[Logs] Received:', log)
+      const formatted: LogEntry = {
+        timestamp: log.timestamp,
+        level: 'INFO', // or dynamic if you want later
+        message: `[${log.agent_name}] ${log.message}`
+      }
 
-  eventSource.onerror = () => {
-    console.error('SSE connection error')
-    eventSource.close()
-    isStarted = false
+      useLogStore.getState().addLogs([formatted])
+    } catch (err) {
+      console.error('[Logs] Failed to parse log entry:', e)
+    }
+  })
+
+  eventSource.onerror = (err) => {
+    console.error('[Logs] SSE stream error:', err)
+    eventSource?.close()
+    eventSource = null
   }
 }

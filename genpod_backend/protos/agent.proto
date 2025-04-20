@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package agent;
 
+//
 // ----- Chat Service -----
+//
 message ChatRequest {
   string user = 1;
   string message = 2;
@@ -10,14 +12,15 @@ message ChatRequest {
 
 message ChatResponse {
   string reply = 1;
-
 }
 
 service ChatService {
   rpc SendMessageStream(ChatRequest) returns (stream ChatResponse);
 }
 
+//
 // ----- Agent Service -----
+//
 message AgentRequest {
   string user_id = 1;
   string tab = 2;
@@ -28,16 +31,49 @@ message AgentResponse {
   string json_payload = 2;
 }
 
-service AgentService {
-  rpc StreamData(AgentRequest) returns (stream AgentResponse);
-  rpc StreamLogsFromFile(LogRequest) returns (stream LogLine); // ✅ NEW
-}
-
-// ----- Log Streaming -----
 message LogLine {
   string line = 1;
 }
 
 message LogRequest {
   string user_id = 1;
+}
+
+service AgentService {
+  rpc StreamData(AgentRequest) returns (stream AgentResponse);
+  rpc StreamLogsFromFile(LogRequest) returns (stream LogLine);
+
+  // ✅ New: Multi-Agent Orchestration RPC
+  rpc RunAgentWorkflow(WorkflowRequest) returns (stream AgentUpdate);
+}
+
+//
+// ----- Multi-Agent Workflow -----
+//
+message WorkflowRequest {
+  string user_id = 1;
+  string prompt = 2;
+}
+
+message AgentUpdate {
+  oneof payload {
+    LogEntry log = 1;
+    WorkflowEvent event = 2;
+    FinalAnswer answer = 3;
+  }
+}
+
+message LogEntry {
+  string agent_name = 1;
+  string message = 2;
+  string timestamp = 3;
+}
+
+message WorkflowEvent {
+  string agent_name = 1;
+  string status = 2; // "STARTED", "FINISHED", etc.
+}
+
+message FinalAnswer {
+  string content = 1;
 }

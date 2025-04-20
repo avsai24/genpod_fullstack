@@ -29,14 +29,13 @@ export default function ChatTab() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // Handle auto-scroll
+  // Auto-scroll
   useEffect(() => {
     if (isAutoScrolling && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isAutoScrolling])
 
-  // Handle scroll events
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
@@ -48,51 +47,43 @@ export default function ChatTab() {
   const handleSend = () => {
     if (!input.trim()) return
 
+    const userText = input.trim()
     const userMessage: Message = {
       id: Date.now(),
       sender: 'user',
-      text: input.trim(),
+      text: userText,
     }
 
     const botId = Date.now() + 1
-
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
     setIsAutoScrolling(true)
 
-    const eventSource = new EventSource(`/api/chat/stream?message=${encodeURIComponent(userMessage.text)}`)
+    const eventSource = new EventSource(`/api/agentStream?prompt=${encodeURIComponent(userText)}&user_id=testUser`)
 
-    let botText = ''
-    let isFirstChunk = true
-
-    eventSource.onmessage = (event) => {
+    eventSource.addEventListener('answer', (event) => {
       const data = JSON.parse(event.data)
-      botText += data.reply
-
-      if (isFirstChunk) {
-        setMessages((prev) => [...prev, { id: botId, sender: 'genpod', text: botText }])
-        setIsLoading(false)
-        isFirstChunk = false
-      } else {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === botId ? { ...msg, text: botText } : msg
-          )
-        )
+      const botMessage: Message = {
+        id: botId,
+        sender: 'genpod',
+        text: data.content,
       }
-    }
+      setMessages((prev) => [...prev, botMessage])
+      setIsLoading(false)
+      eventSource.close()
+    })
 
     eventSource.onerror = () => {
-      eventSource.close()
       setIsLoading(false)
+      eventSource.close()
     }
   }
 
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Messages */}
-      <div 
+      <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto custom-scrollbar"
@@ -120,7 +111,7 @@ export default function ChatTab() {
                       },
                       code: ({ node, children, ...props }) => {
                         const className = node?.properties?.className
-                        const isInline = Array.isArray(className) 
+                        const isInline = Array.isArray(className)
                           ? className.includes('inline')
                           : typeof className === 'string' && className.includes('inline')
                         return isInline ? (
@@ -209,25 +200,20 @@ export default function ChatTab() {
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background-color: #CBD5E0;
           border-radius: 3px;
         }
-        
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background-color: #A0AEC0;
         }
-        
         .custom-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: #CBD5E0 transparent;
         }
-        
         .custom-scrollbar:hover {
           scrollbar-color: #A0AEC0 transparent;
         }

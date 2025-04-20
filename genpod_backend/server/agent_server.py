@@ -225,6 +225,52 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 )
                 time.sleep(2)
 
+    def RunAgentWorkflow(self, request, context):
+        print(f"[Workflow] User {request.user_id} requested prompt: {request.prompt}")
+
+        def send_log(agent_name, message):
+            return agent_pb2.AgentUpdate(
+                log=agent_pb2.LogEntry(
+                    agent_name=agent_name,
+                    message=message,
+                    timestamp=time.strftime("%H:%M:%S")
+                )
+            )
+
+        def send_event(agent_name, status):
+            return agent_pb2.AgentUpdate(
+                event=agent_pb2.WorkflowEvent(
+                    agent_name=agent_name,
+                    status=status
+                )
+            )
+
+        yield send_event("Supervisor", "STARTED")
+        yield send_log("Supervisor", f"Received prompt: {request.prompt}")
+        time.sleep(2)
+        yield send_event("Supervisor", "FINISHED")  # 👈 ADD THIS LINE
+
+        agents = ["Planner", "Architect", "Coder", "Tester", "Reviewer"]
+
+        for agent in agents:
+            yield send_event(agent, "STARTED")
+            yield send_log(agent, f"{agent} agent is working...")
+            time.sleep(2)
+            yield send_log(agent, f"{agent} agent completed its task.")
+            yield send_event(agent, "FINISHED")
+
+        time.sleep(1)
+
+        # Dummy final answer
+        final_output = f"Genpod completed you task successfully!!"
+
+        yield agent_pb2.AgentUpdate(
+            answer=agent_pb2.FinalAnswer(content=final_output)
+        )
+
+        print("[Workflow] Finished workflow and sent final answer.")
+
+
 # ----- Serve on 50052 -----
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

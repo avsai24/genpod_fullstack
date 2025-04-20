@@ -10,11 +10,12 @@ export default function LogsTab() {
   const scrollRef = useRef<HTMLUListElement>(null)
 
   useEffect(() => {
-    startLogStream() // SSE + gRPC log streaming
+    startLogStream('build a simple login app') // SSE + gRPC log streaming
   }, [])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+    console.log('[LogsTab] Zustand logs:', logs)
   }, [logs])
 
   return (

@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import server.agent_pb2 as agent__pb2
+import agent_pb2 as agent__pb2
 
 
 class ChatServiceStub(object):
@@ -85,6 +85,11 @@ class AgentServiceStub(object):
                 request_serializer=agent__pb2.LogRequest.SerializeToString,
                 response_deserializer=agent__pb2.LogLine.FromString,
                 )
+        self.RunAgentWorkflow = channel.unary_stream(
+                '/agent.AgentService/RunAgentWorkflow',
+                request_serializer=agent__pb2.WorkflowRequest.SerializeToString,
+                response_deserializer=agent__pb2.AgentUpdate.FromString,
+                )
 
 
 class AgentServiceServicer(object):
@@ -97,7 +102,13 @@ class AgentServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def StreamLogsFromFile(self, request, context):
-        """✅ NEW
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RunAgentWorkflow(self, request, context):
+        """✅ New: Multi-Agent Orchestration RPC
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -115,6 +126,11 @@ def add_AgentServiceServicer_to_server(servicer, server):
                     servicer.StreamLogsFromFile,
                     request_deserializer=agent__pb2.LogRequest.FromString,
                     response_serializer=agent__pb2.LogLine.SerializeToString,
+            ),
+            'RunAgentWorkflow': grpc.unary_stream_rpc_method_handler(
+                    servicer.RunAgentWorkflow,
+                    request_deserializer=agent__pb2.WorkflowRequest.FromString,
+                    response_serializer=agent__pb2.AgentUpdate.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -157,5 +173,22 @@ class AgentService(object):
         return grpc.experimental.unary_stream(request, target, '/agent.AgentService/StreamLogsFromFile',
             agent__pb2.LogRequest.SerializeToString,
             agent__pb2.LogLine.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def RunAgentWorkflow(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/agent.AgentService/RunAgentWorkflow',
+            agent__pb2.WorkflowRequest.SerializeToString,
+            agent__pb2.AgentUpdate.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

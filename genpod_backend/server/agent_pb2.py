@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\",\n\x0b\x43hatRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x1d\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\",\n\x0c\x41gentRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0b\n\x03tab\x18\x02 \x01(\t\"3\n\rAgentResponse\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x14\n\x0cjson_payload\x18\x02 \x01(\t\"\x17\n\x07LogLine\x12\x0c\n\x04line\x18\x01 \x01(\t\"\x1d\n\nLogRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t2M\n\x0b\x43hatService\x12>\n\x11SendMessageStream\x12\x12.agent.ChatRequest\x1a\x13.agent.ChatResponse0\x01\x32\x84\x01\n\x0c\x41gentService\x12\x39\n\nStreamData\x12\x13.agent.AgentRequest\x1a\x14.agent.AgentResponse0\x01\x12\x39\n\x12StreamLogsFromFile\x12\x11.agent.LogRequest\x1a\x0e.agent.LogLine0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0b\x61gent.proto\x12\x05\x61gent\",\n\x0b\x43hatRequest\x12\x0c\n\x04user\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x1d\n\x0c\x43hatResponse\x12\r\n\x05reply\x18\x01 \x01(\t\",\n\x0c\x41gentRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0b\n\x03tab\x18\x02 \x01(\t\"3\n\rAgentResponse\x12\x0c\n\x04type\x18\x01 \x01(\t\x12\x14\n\x0cjson_payload\x18\x02 \x01(\t\"\x17\n\x07LogLine\x12\x0c\n\x04line\x18\x01 \x01(\t\"\x1d\n\nLogRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\"2\n\x0fWorkflowRequest\x12\x0f\n\x07user_id\x18\x01 \x01(\t\x12\x0e\n\x06prompt\x18\x02 \x01(\t\"\x85\x01\n\x0b\x41gentUpdate\x12\x1e\n\x03log\x18\x01 \x01(\x0b\x32\x0f.agent.LogEntryH\x00\x12%\n\x05\x65vent\x18\x02 \x01(\x0b\x32\x14.agent.WorkflowEventH\x00\x12$\n\x06\x61nswer\x18\x03 \x01(\x0b\x32\x12.agent.FinalAnswerH\x00\x42\t\n\x07payload\"B\n\x08LogEntry\x12\x12\n\nagent_name\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x11\n\ttimestamp\x18\x03 \x01(\t\"3\n\rWorkflowEvent\x12\x12\n\nagent_name\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\"\x1e\n\x0b\x46inalAnswer\x12\x0f\n\x07\x63ontent\x18\x01 \x01(\t2M\n\x0b\x43hatService\x12>\n\x11SendMessageStream\x12\x12.agent.ChatRequest\x1a\x13.agent.ChatResponse0\x01\x32\xc6\x01\n\x0c\x41gentService\x12\x39\n\nStreamData\x12\x13.agent.AgentRequest\x1a\x14.agent.AgentResponse0\x01\x12\x39\n\x12StreamLogsFromFile\x12\x11.agent.LogRequest\x1a\x0e.agent.LogLine0\x01\x12@\n\x10RunAgentWorkflow\x12\x16.agent.WorkflowRequest\x1a\x12.agent.AgentUpdate0\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,18 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_LOGLINE']._serialized_end=221
   _globals['_LOGREQUEST']._serialized_start=223
   _globals['_LOGREQUEST']._serialized_end=252
-  _globals['_CHATSERVICE']._serialized_start=254
-  _globals['_CHATSERVICE']._serialized_end=331
-  _globals['_AGENTSERVICE']._serialized_start=334
-  _globals['_AGENTSERVICE']._serialized_end=466
+  _globals['_WORKFLOWREQUEST']._serialized_start=254
+  _globals['_WORKFLOWREQUEST']._serialized_end=304
+  _globals['_AGENTUPDATE']._serialized_start=307
+  _globals['_AGENTUPDATE']._serialized_end=440
+  _globals['_LOGENTRY']._serialized_start=442
+  _globals['_LOGENTRY']._serialized_end=508
+  _globals['_WORKFLOWEVENT']._serialized_start=510
+  _globals['_WORKFLOWEVENT']._serialized_end=561
+  _globals['_FINALANSWER']._serialized_start=563
+  _globals['_FINALANSWER']._serialized_end=593
+  _globals['_CHATSERVICE']._serialized_start=595
+  _globals['_CHATSERVICE']._serialized_end=672
+  _globals['_AGENTSERVICE']._serialized_start=675
+  _globals['_AGENTSERVICE']._serialized_end=873
 # @@protoc_insertion_point(module_scope)
