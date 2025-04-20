@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
+import { useAgentStreamStore } from '@/state/agentStreamStore'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -8,76 +9,27 @@ import 'highlight.js/styles/atom-one-dark.css'
 
 import { Plus, Paperclip, Mic, Send } from 'lucide-react'
 
-interface Message {
-  id: number
-  sender: 'user' | 'genpod'
-  text: string
-}
-
-interface MarkdownNode {
-  children?: Array<{ tagName?: string }>
-  properties?: {
-    className?: string | string[] | number | boolean | (string | number)[]
-  }
-}
-
 export default function ChatTab() {
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isAutoScrolling, setIsAutoScrolling] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll
-  useEffect(() => {
-    if (isAutoScrolling && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, isAutoScrolling])
+  const { prompt, answer, isStreaming, startAgentStream } = useAgentStreamStore()
 
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
       const isAtBottom = scrollHeight - scrollTop <= clientHeight + 100
-      setIsAutoScrolling(isAtBottom)
+      if (isAtBottom && messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
     }
   }
 
   const handleSend = () => {
     if (!input.trim()) return
-
-    const userText = input.trim()
-    const userMessage: Message = {
-      id: Date.now(),
-      sender: 'user',
-      text: userText,
-    }
-
-    const botId = Date.now() + 1
-    setMessages((prev) => [...prev, userMessage])
+    startAgentStream(input.trim(), 'testUser')
     setInput('')
-    setIsLoading(true)
-    setIsAutoScrolling(true)
-
-    const eventSource = new EventSource(`/api/agentStream?prompt=${encodeURIComponent(userText)}&user_id=testUser`)
-
-    eventSource.addEventListener('answer', (event) => {
-      const data = JSON.parse(event.data)
-      const botMessage: Message = {
-        id: botId,
-        sender: 'genpod',
-        text: data.content,
-      }
-      setMessages((prev) => [...prev, botMessage])
-      setIsLoading(false)
-      eventSource.close()
-    })
-
-    eventSource.onerror = () => {
-      setIsLoading(false)
-      eventSource.close()
-    }
   }
 
   return (
@@ -89,56 +41,29 @@ export default function ChatTab() {
         className="flex-1 overflow-y-auto custom-scrollbar"
       >
         <div className="w-full px-4 py-6 space-y-6">
-          {messages.map((msg) => (
-            <div key={msg.id}>
-              {msg.sender === 'user' ? (
-                <div className="flex justify-end mb-2">
-                  <div className="bg-blue-100 text-blue-800 rounded-lg px-4 py-2 max-w-[45%]">
-                    <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeHighlight]}
-                    components={{
-                      p: ({ node, children }) => {
-                        const hasCode = (node as MarkdownNode)?.children?.some(
-                          (child) => child.tagName === 'pre' || child.tagName === 'code'
-                        )
-                        return hasCode ? <>{children}</> : <p className="mb-3 text-sm">{children}</p>
-                      },
-                      code: ({ node, children, ...props }) => {
-                        const className = node?.properties?.className
-                        const isInline = Array.isArray(className)
-                          ? className.includes('inline')
-                          : typeof className === 'string' && className.includes('inline')
-                        return isInline ? (
-                          <code className="bg-gray-200 px-1 rounded text-sm">{children}</code>
-                        ) : (
-                          <pre className="bg-gray-800 text-white p-3 rounded text-sm overflow-auto my-3">
-                            <code {...props}>{children}</code>
-                          </pre>
-                        )
-                      },
-                      li: ({ children }) => <li className="ml-4 list-disc text-sm mb-1">{children}</li>,
-                      ul: ({ children }) => <ul className="mb-3">{children}</ul>,
-                      ol: ({ children }) => <ol className="mb-3">{children}</ol>,
-                      h1: ({ children }) => <h1 className="text-xl font-semibold mb-3">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-lg font-semibold mb-2">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-base font-semibold mb-2">{children}</h3>,
-                    }}
-                  >
-                    {msg.text}
-                  </ReactMarkdown>
-                </div>
-              )}
+          {/* User message */}
+          {prompt && (
+            <div className="flex justify-end mb-2">
+              <div className="bg-blue-100 text-blue-800 rounded-lg px-4 py-2 max-w-[45%]">
+                <p className="text-sm whitespace-pre-wrap break-words">{prompt}</p>
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* AI Response */}
+          {answer && (
+            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+              >
+                {answer}
+              </ReactMarkdown>
+            </div>
+          )}
 
           {/* Typing indicator */}
-          {isLoading && (
+          {isStreaming && (
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <div className="flex space-x-1">
                 <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />

@@ -255,11 +255,11 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         for agent in agents:
             yield send_event(agent, "STARTED")
             yield send_log(agent, f"{agent} agent is working...")
-            time.sleep(2)
+            time.sleep(5)
             yield send_log(agent, f"{agent} agent completed its task.")
             yield send_event(agent, "FINISHED")
 
-        time.sleep(1)
+        time.sleep(1.5)
 
         # Dummy final answer
         final_output = f"Genpod completed you task successfully!!"
