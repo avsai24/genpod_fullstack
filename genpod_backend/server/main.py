@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import files, settings, prompt_routes
+from .api import files, settings, prompt_routes, chat_stream
 from .services.file_events import FileEventsService
 import logging
 from pathlib import Path
 import os
 
-# Configure logging
+# # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -35,10 +35,10 @@ file_events_service = FileEventsService(str(PROJECT_ROOT))
 async def startup_event():
     """Startup event handler."""
     try:
-        logger.info("🚀 Starting up application...")
+        # logger.info("🚀 Starting up application...")
         # Start file watcher
         file_events_service.start_watching()
-        logger.info("✅ File watcher started")
+        # logger.info("✅ File watcher started")
     except Exception as e:
         logger.error(f"❌ Error during startup: {str(e)}", exc_info=True)
 
@@ -46,10 +46,10 @@ async def startup_event():
 async def shutdown_event():
     """Shutdown event handler."""
     try:
-        logger.info("🛑 Shutting down application...")
+        # logger.info("🛑 Shutting down application...")
         # Stop file watcher
         file_events_service.stop_watching()
-        logger.info("✅ File watcher stopped")
+        # logger.info("✅ File watcher stopped")
     except Exception as e:
         logger.error(f"❌ Error during shutdown: {str(e)}", exc_info=True)
 
@@ -57,6 +57,7 @@ async def shutdown_event():
 app.include_router(files.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(prompt_routes.router, prefix="/api")
+app.include_router(chat_stream.router, prefix="/api/chat")  
 
 # Add a health check endpoint
 @app.get("/health")
@@ -68,15 +69,15 @@ async def health_check():
 async def reload():
     """Trigger a reload of the application."""
     try:
-        logger.info("🔄 Reloading application...")
+        # logger.info("🔄 Reloading application...")
         # Stop the file watcher
         file_events_service.stop_watching()
         # Start it again
         file_events_service.start_watching()
-        logger.info("✅ Application reloaded")
+        # logger.info("✅ Application reloaded")
         return {"status": "reloaded"}
     except Exception as e:
-        logger.error(f"❌ Error during reload: {str(e)}", exc_info=True)
+        # logger.error(f"❌ Error during reload: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
 @app.get("/")

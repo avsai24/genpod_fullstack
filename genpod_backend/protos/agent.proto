@@ -43,7 +43,7 @@ service AgentService {
   rpc StreamData(AgentRequest) returns (stream AgentResponse);
   rpc StreamLogsFromFile(LogRequest) returns (stream LogLine);
 
-  // ✅ New: Multi-Agent Orchestration RPC
+  // ✅ Multi-Agent Orchestration
   rpc RunAgentWorkflow(WorkflowRequest) returns (stream AgentUpdate);
 }
 
@@ -60,6 +60,7 @@ message AgentUpdate {
     LogEntry log = 1;
     WorkflowEvent event = 2;
     FinalAnswer answer = 3;
+    WorkflowList workflow = 4; // ✅ NEW structured workflow[]
   }
 }
 
@@ -76,4 +77,16 @@ message WorkflowEvent {
 
 message FinalAnswer {
   string content = 1;
+}
+
+//
+// ✅ New: Structured Workflow Data
+//
+message WorkflowItem {
+  string agent = 1;
+  string task = 2;
+}
+
+message WorkflowList {
+  repeated WorkflowItem items = 1;
 }

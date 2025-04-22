@@ -1,84 +1,76 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
-import { useAgentStreamStore } from '@/state/agentStreamStore'
+import { useRef, useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/atom-one-dark.css'
-
 import { Plus, Paperclip, Mic, Send } from 'lucide-react'
+import { useAgentStreamStore } from '@/state/agentStreamStore'
 
 export default function ChatTab() {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
-
   const { prompt, answer, isStreaming, startAgentStream } = useAgentStreamStore()
 
-  const handleScroll = () => {
-    if (messagesContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current
-      const isAtBottom = scrollHeight - scrollTop <= clientHeight + 100
-      if (isAtBottom && messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
-      }
-    }
-  }
+  console.log('🔄 ChatTab render:', {
+    hasPrompt: !!prompt,
+    hasAnswer: !!answer,
+    isStreaming,
+    inputLength: input.length
+  })
 
   const handleSend = () => {
     if (!input.trim()) return
-    startAgentStream(input.trim(), 'testUser')
+    console.log('📤 Sending message:', input.trim())
+    startAgentStream(input.trim(), 'user')
     setInput('')
   }
 
+  useEffect(() => {
+    console.log('📝 Chat state updated:', {
+      prompt,
+      answerLength: answer?.length,
+      isStreaming
+    })
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [prompt, answer, isStreaming])
+
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Messages */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto custom-scrollbar"
-      >
-        <div className="w-full px-4 py-6 space-y-6">
-          {/* User message */}
-          {prompt && (
-            <div className="flex justify-end mb-2">
-              <div className="bg-blue-100 text-blue-800 rounded-lg px-4 py-2 max-w-[45%]">
-                <p className="text-sm whitespace-pre-wrap break-words">{prompt}</p>
-              </div>
+      {/* Message list */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+        {prompt && (
+          <div className="flex justify-end">
+            <div className="bg-blue-100 text-blue-800 rounded-lg px-4 py-2 max-w-[45%]">
+              <p className="text-sm whitespace-pre-wrap break-words">{prompt}</p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* AI Response */}
-          {answer && (
-            <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeHighlight]}
-              >
-                {answer}
-              </ReactMarkdown>
+        {answer && (
+          <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+              {answer}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {isStreaming && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex space-x-1">
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
             </div>
-          )}
+            <span>Genpod is thinking...</span>
+          </div>
+        )}
 
-          {/* Typing indicator */}
-          {isStreaming && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <div className="flex space-x-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-              </div>
-              <span>Genpod is responding...</span>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input bar */}
       <div className="bg-white p-3 border-t border-gray-200">
         <div className="max-w-3xl mx-auto">
           <div className="rounded-lg border bg-gray-50 px-4 py-3 shadow-sm w-full">

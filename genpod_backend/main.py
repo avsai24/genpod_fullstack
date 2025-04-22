@@ -4,6 +4,7 @@ from server.api import settings
 from server.api import prompt_routes
 from server.api import logs
 from server.api import files
+from server.api import chat_stream
 
 app = FastAPI()
 
@@ -21,6 +22,7 @@ app.include_router(settings.router, prefix="/api")
 app.include_router(prompt_routes.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
+app.include_router(chat_stream.router, prefix="/api")
 
 @app.get("/")
 def read_root():

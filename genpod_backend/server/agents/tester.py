@@ -30,6 +30,10 @@ class TesterAgent(AgentBase):
         try:
             prompt_value = self.prompt.invoke({"task": task})
             response = self.model.invoke(prompt_value)
-            return response.content.strip()
+            result = response.content.strip()
+            context.setdefault("Coder", []).append(result)
+            return result
         except Exception as e:
-            return f"❌ TesterAgent failed: {str(e)}"
+            error_msg = f"❌ CoderAgent failed: {str(e)}"
+            context.setdefault("Coder", []).append(error_msg)
+            return error_msg

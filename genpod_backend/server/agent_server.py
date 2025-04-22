@@ -15,7 +15,7 @@ import google.generativeai as genai
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-pro")
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), "../logs/agent.log")
 PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -245,31 +245,71 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 )
             )
 
+        # Step 1: Supervisor starts
         yield send_event("Supervisor", "STARTED")
         yield send_log("Supervisor", f"Received prompt: {request.prompt}")
-        time.sleep(2)
-        yield send_event("Supervisor", "FINISHED")  # 👈 ADD THIS LINE
+        time.sleep(1)
 
-        agents = ["Planner", "Architect", "Coder", "Tester", "Reviewer"]
+        # Step 2: Ask Gemini to generate subtasks
+        try:
+            breakdown_prompt = f"""
+                You are a Supervisor agent. Your job is to break down the following user task into subtasks and assign them to agents (like Coder, Tester, Reviewer).
 
-        for agent in agents:
+                IMPORTANT:
+                - Output ONLY valid JSON. Do NOT add markdown, commentary, or explanation.
+                - Follow this JSON format exactly:
+                [
+                {{ "agent": "Coder", "task": "Implement feature X" }},
+                {{ "agent": "Tester", "task": "Write tests for feature X" }}
+                ]
+
+                Now, break down this task:
+                "{request.prompt}"
+            """
+
+            print("[Gemini] Sending breakdown prompt...")
+            gemini_response = model.generate_content(breakdown_prompt)
+            print("[Gemini] Raw response:", gemini_response.text)
+
+            raw_text = gemini_response.text.strip()
+
+            # ✅ Clean out markdown formatting
+            if raw_text.startswith("```json"):
+                raw_text = raw_text.lstrip("```json").rstrip("```").strip()
+            elif raw_text.startswith("```"):
+                raw_text = raw_text.lstrip("```").rstrip("```").strip()
+
+            # ✅ Now parse
+            subtasks = json.loads(raw_text)
+
+            yield send_log("System", json.dumps({ "subtasks": subtasks }))
+        except Exception as e:
+            yield send_log("Supervisor", f"Error generating subtasks: {str(e)}")
+            subtasks = []
+
+        yield send_event("Supervisor", "FINISHED")
+        time.sleep(1)
+
+        # Step 3: Each agent performs their task
+        for task in subtasks:
+            agent = task["agent"]
+            message = task["task"]
+
             yield send_event(agent, "STARTED")
-            yield send_log(agent, f"{agent} agent is working...")
-            time.sleep(5)
-            yield send_log(agent, f"{agent} agent completed its task.")
+            yield send_log(agent, f"{agent} is working on: {message}")
+            time.sleep(3)
+            yield send_log(agent, f"{agent} completed: {message}")
             yield send_event(agent, "FINISHED")
 
+        # Step 4: Final answer
         time.sleep(1.5)
-
-        # Dummy final answer
-        final_output = f"Genpod completed you task successfully!!"
+        final_output = f"Genpod completed your task successfully!!"
 
         yield agent_pb2.AgentUpdate(
             answer=agent_pb2.FinalAnswer(content=final_output)
         )
 
         print("[Workflow] Finished workflow and sent final answer.")
-
 
 # ----- Serve on 50052 -----
 def serve():

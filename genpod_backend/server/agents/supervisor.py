@@ -1,51 +1,41 @@
 # genpod_backend/server/agents/supervisor.py
 
-from .base import AgentBase
 import os
-import json
+from dotenv import load_dotenv
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-class SupervisorAgent(AgentBase):
+# ✅ Load the .env file with your GEMINI_API_KEY
+load_dotenv()
+
+class SupervisorAgent:
     def __init__(self):
-        super().__init__("Supervisor")
+        # ✅ Use the API key from environment
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key:
+            raise ValueError("❌ GEMINI_API_KEY not found in environment.")
+
         self.model = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+            model="gemini-1.5-pro",  # or gemini-2.0-flash if needed
+            google_api_key=api_key,
             temperature=0.7
         )
 
+        # ✅ Define the structured prompt
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a Supervisor AI. Your job is to break a high-level task into subtasks and assign them to the right agents in JSON.\n\nAgents available:\n- Coder: builds the functionality\n- Tester: writes tests\n- Reviewer: reviews the work.\n\nReturn only a JSON array."),
+            ("human", "{input}")
+        ])
+
         self.parser = JsonOutputParser()
 
-        self.prompt = PromptTemplate.from_template(
-            """
-            You are a Supervisor AI. Your job is to break down a task into subtasks and assign them to agents.
-
-            Agents available:
-            - Coder: builds the core functionality
-            - Tester: writes tests
-            - Reviewer: reviews code and tests
-
-            Task: {task}
-
-            Respond ONLY with a JSON array of objects like:
-            [
-              {{ "agent": "Coder", "task": "Implement X" }},
-              {{ "agent": "Tester", "task": "Write tests for X" }}
-            ]
-            """
-        )
-
-    def run(self, task: str, context: dict) -> str:
+    def generate_subtasks(self, user_input: str) -> str:
         try:
-            prompt_value = self.prompt.invoke({"task": task})
-            response = self.model.invoke(prompt_value)
-            parsed = self.parser.invoke(response)
-
-            subtasks = [(entry["agent"], entry["task"]) for entry in parsed]
-            context["subtasks"] = subtasks
-            return f"Assigned subtasks to: {[a for a, _ in subtasks]}"
+            chain = self.prompt | self.model
+            response = chain.invoke({"input": user_input})
+            return response.content  # This will be a JSON string
         except Exception as e:
-            context["subtasks"] = []
-            return f"❌ Failed to generate subtasks: {str(e)}"
+            print("❌ Error in SupervisorAgent:", e)
+            raise

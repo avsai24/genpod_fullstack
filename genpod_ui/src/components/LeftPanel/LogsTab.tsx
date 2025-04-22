@@ -9,8 +9,17 @@ export default function LogsTab() {
   const prompt = useAgentStreamStore((s) => s.prompt)
   const scrollRef = useRef<HTMLUListElement>(null)
 
-  // Auto-scroll to bottom on new logs
+  console.log('🔄 LogsTab render:', {
+    logsCount: logs.length,
+    hasPrompt: !!prompt,
+    latestLog: logs[logs.length - 1]
+  })
+
   useEffect(() => {
+    console.log('📝 Logs updated:', {
+      count: logs.length,
+      latest: logs[logs.length - 1]
+    })
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [logs])
 
@@ -28,21 +37,26 @@ export default function LogsTab() {
           <AnimatePresence initial={false}>
             {logs.map((log, idx) => (
               <motion.li
-                key={`${log.timestamp}-${idx}`}
+                key={`${log.timestamp || idx}-${idx}`}
                 initial={{ opacity: 0, y: 2 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="grid grid-cols-[90px_60px_1fr] gap-4 border-b border-gray-800 py-1"
               >
-                <span className="text-gray-500">{log.timestamp}</span>
-                <span className={
-                  log.message.toLowerCase().includes('error') ? 'text-red-400 font-semibold'
-                  : 'text-green-400 font-semibold'
-                }>
+                <span className="text-gray-500">{log.timestamp || ''}</span>
+                <span
+                  className={
+                    log?.message?.toLowerCase().includes('error')
+                      ? 'text-red-400 font-semibold'
+                      : 'text-green-400 font-semibold'
+                  }
+                >
                   [INFO]
                 </span>
-                <span className="text-gray-100">[{log.agent_name}] {log.message}</span>
+                <span className="text-gray-100">
+                  [{log.agent_name || 'System'}] {log.message}
+                </span>
               </motion.li>
             ))}
           </AnimatePresence>

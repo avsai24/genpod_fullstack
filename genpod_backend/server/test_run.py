@@ -1,4 +1,20 @@
-# genpod_backend/server/test_run.py
-from agent_engine import run_agent_workflow
+import grpc
+import agent_pb2
+import agent_pb2_grpc
 
-run_agent_workflow("Build a simple app, test it, and review everything.")
+channel = grpc.insecure_channel("localhost:50052")
+stub = agent_pb2_grpc.AgentServiceStub(channel)
+
+request = agent_pb2.WorkflowRequest(
+    user_id="test_user",
+    prompt="Build a chatbot web application"
+)
+
+for update in stub.RunAgentWorkflow(request):
+    print("--- Received Update ---")
+    if update.HasField("log"):
+        print(f"[LOG] {update.log.agent_name}: {update.log.message}")
+    elif update.HasField("event"):
+        print(f"[EVENT] {update.event.agent_name} - {update.event.status}")
+    elif update.HasField("answer"):
+        print(f"[FINAL ANSWER] {update.answer.content}")

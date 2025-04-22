@@ -108,7 +108,7 @@ class AgentServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def RunAgentWorkflow(self, request, context):
-        """✅ New: Multi-Agent Orchestration RPC
+        """✅ Multi-Agent Orchestration
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
