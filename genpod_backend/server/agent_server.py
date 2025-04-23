@@ -169,18 +169,70 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 if request.tab == "metrics":
                     print("[Metrics] Streaming metrics data...")
                     while True:
-                        data = [
-                            {"name": "CPU Usage", "value": f"{random.randint(30, 80)}%"},
-                            {"name": "Memory Usage", "value": f"{random.randint(4, 12)} GB"},
-                            {"name": "Uptime", "value": f"{random.randint(1, 10)} days"},
-                        ]
+                        data = {
+                            "project_overview": [
+                                {"name": "Service Name", "value": "TitleRequestsMicroservice"},
+                                {"name": "Current Status", "value":  "COMPLETED"},
+                                {"name": "Completion (%)", "value": f"{random.uniform(5.0, 100.0):.1f}%"},
+                                {"name": "Agents Status", "value": random.choice([
+                                    "Supervisor assigning tasks",
+                                    "Coder active",
+                                    "All agents idle",
+                                    "Tester running validations"
+                                ])},
+                                {"name": "Total Tasks", "value": str(random.randint(10, 30))},
+                                {"name": "Total Planned Tasks", "value": str(random.randint(10, 20))},
+                                {"name": "Total Issues", "value": str(random.randint(0, 5))},
+                                {"name": "User Prompt", "value": "I want to develop a Title Requests Micro-service adhering to MISMO..."},
+                                {"name": "Project Directory", "value": "/home/venkata/genpod/output/..."}
+                            ],
+                            "planned_tasks": [
+                                {"name": "Current Planned Task ID", "value": f"{random.randint(1700000000000, 1800000000000)}-..."},
+                                {"name": "Position in queue", "value": str(random.randint(0, 10))},
+                                {"name": "Total Planned Tasks", "value": str(random.randint(0, 10))}
+                            ],
+                            "issues": [
+                                {"name": "Current Issue Position", "value": str(random.randint(0, 5))},
+                                {"name": "Total Issues", "value": str(random.randint(0, 5))}
+                            ],
+                            "agent_state": [
+                                {"name": "Agent", "value": random.choice(["Solution Architect", "Coder", "Tester"])},
+                                {"name": "Active Node", "value": random.choice(["entry", "design", "validate", "build"])},
+                                {"name": "Stage", "value": random.choice(["generate_requirements", "setup_env", "write_tests"])}
+                            ],
+                            "token_summary": [
+                                {"name": "Total Calls", "value": str(random.randint(5, 20))},
+                                {"name": "Aggregate Input Tokens", "value": f"{random.randint(5000, 10000):,}"},
+                                {"name": "Aggregate Output Tokens", "value": f"{random.randint(8000, 15000):,}"},
+                                {"name": "Avg Call Duration (s)", "value": f"{random.uniform(5.0, 20.0):.2f}"},
+                                {"name": "Total LLM Time (s)", "value": f"{random.uniform(50.0, 200.0):.2f}"}
+                            ],
+                            "token_by_model": [
+                                {
+                                    "model": "openai/g3-mini",
+                                    "calls": random.randint(5, 20),
+                                    "input_tokens": f"{random.randint(3000, 8000):,} ($0.01)",
+                                    "output_tokens": f"{random.randint(5000, 12000):,} ($0.04)",
+                                    "total_cost": "$0.05"
+                                },
+                                {
+                                    "model": "ALL MODELS",
+                                    "calls": random.randint(5, 20),
+                                    "input_tokens": f"{random.randint(6000, 10000):,}",
+                                    "output_tokens": f"{random.randint(9000, 14000):,}",
+                                    "total_cost": "$0.06"
+                                }
+                            ]
+                        }
 
                         yield agent_pb2.AgentResponse(
                             type="metrics",
                             json_payload=json.dumps(data)
                         )
 
-                        time.sleep(1)
+                        time.sleep(2)
+                
+                
                 elif request.tab == "configure":
                     data = {
                         "max_users": "1000",
