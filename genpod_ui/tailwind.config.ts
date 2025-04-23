@@ -1,5 +1,3 @@
-import type { Config } from 'tailwindcss'
-
 const config: Config = {
   content: [
     "./src/app/**/*.{js,ts,jsx,tsx}",
@@ -8,10 +6,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#0D1117',
-        surface: '#161B22',
-        foreground: '#F5F7FA',
-        accent: '#14B8A6',
+        background: '#0A0A0A',
+        surface: '#1A1A1A',
+        input: '#121212',
+        textPrimary: '#E5E5E5',
+        textSecondary: '#A1A1AA',
+        border: '#2A2A2A',
+        accent: '#3B82F6',
+        accentHover: '#2563EB',
+        success: '#22C55E',
+        warning: '#EAB308',
+        error: '#EF4444',
       },
       boxShadow: {
         soft: '0 1px 3px rgba(0, 0, 0, 0.1)',
@@ -19,6 +24,8 @@ const config: Config = {
       },
     },
   },
+  safelist: [
+    'hover:bg-accentHover',
+  ],
   plugins: [],
 }
-export default config

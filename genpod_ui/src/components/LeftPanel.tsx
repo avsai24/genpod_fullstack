@@ -47,18 +47,18 @@ export default function LeftPanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white text-gray-900">
+    <div className="h-full flex flex-col bg-surface text-text-primary">
       {/* Tab Buttons */}
-      <div className="flex border-b bg-gray-100 text-sm px-2">
+      <div className="flex border-b border-border bg-background text-sm px-2">
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-1 px-4 py-2 font-medium border-b-2 transition-all
+            className={`flex items-center gap-1 px-4 py-2 font-medium border-b-2 transition-all duration-200 ease-in-out
               ${
                 activeTab === tab
-                  ? 'border-blue-500 text-blue-600 bg-white rounded-t-md shadow-sm'
-                  : 'border-transparent text-gray-500 hover:text-blue-500 hover:bg-gray-50'
+                  ? 'border-primary text-primary bg-surface rounded-t-md shadow-sm'
+                  : 'border-transparent text-text-secondary hover:text-primary hover:bg-surface'
               }`}
           >
             {getIcon(tab)}

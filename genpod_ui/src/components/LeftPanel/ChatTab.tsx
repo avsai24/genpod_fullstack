@@ -37,19 +37,19 @@ export default function ChatTab() {
   }, [prompt, answer, isStreaming])
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-surface">
       {/* Message list */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
         {prompt && (
           <div className="flex justify-end">
-            <div className="bg-blue-100 text-blue-800 rounded-lg px-4 py-2 max-w-[45%]">
+            <div className="bg-accent/10 text-accent rounded-lg px-4 py-2 max-w-[45%]">
               <p className="text-sm whitespace-pre-wrap break-words">{prompt}</p>
             </div>
           </div>
         )}
 
         {answer && (
-          <div className="w-full bg-gray-50 border border-gray-200 rounded-lg px-6 py-4">
+          <div className="w-full bg-input border border-border rounded-lg px-6 py-4">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
               {answer}
             </ReactMarkdown>
@@ -57,11 +57,11 @@ export default function ChatTab() {
         )}
 
         {isStreaming && (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center gap-2 text-sm text-textSecondary">
             <div className="flex space-x-1">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-2 h-2 bg-accent rounded-full animate-bounce" />
             </div>
             <span>Genpod is thinking...</span>
           </div>
@@ -71,12 +71,12 @@ export default function ChatTab() {
       </div>
 
       {/* Input bar */}
-      <div className="bg-white p-3 border-t border-gray-200">
+      <div className="bg-surface p-3 border-t border-border">
         <div className="max-w-3xl mx-auto">
-          <div className="rounded-lg border bg-gray-50 px-4 py-3 shadow-sm w-full">
+          <div className="rounded-lg border border-border bg-input px-4 py-3 shadow-sm w-full">
             <textarea
               rows={1}
-              className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-500 outline-none resize-none custom-scrollbar"
+              className="w-full bg-transparent text-sm text-textPrimary placeholder-textSecondary outline-none resize-none custom-scrollbar"
               placeholder="Message Genpod..."
               value={input}
               onChange={(e) => {
@@ -93,17 +93,21 @@ export default function ChatTab() {
               style={{ minHeight: '24px', maxHeight: '200px' }}
             />
             <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-4 text-gray-600">
-                <button className="hover:text-blue-500 hover:scale-110 transition"><Plus size={18} /></button>
-                <label className="cursor-pointer hover:text-blue-500 hover:scale-110 transition">
+              <div className="flex items-center gap-4 text-textSecondary">
+                <button className="hover:text-textPrimary hover:scale-110 active:scale-95 transition-all duration-150">
+                  <Plus size={18} />
+                </button>
+                <label className="cursor-pointer hover:text-textPrimary hover:scale-110 active:scale-95 transition-all duration-150">
                   <Paperclip size={18} />
                   <input type="file" className="hidden" />
                 </label>
-                <button className="hover:text-blue-500 hover:scale-110 transition"><Mic size={18} /></button>
+                <button className="hover:text-textPrimary hover:scale-110 active:scale-95 transition-all duration-150">
+                  <Mic size={18} />
+                </button>
               </div>
               <button
                 onClick={handleSend}
-                className="rounded-full bg-blue-500 p-2 hover:bg-blue-600 transition text-white"
+                className="rounded-full bg-white p-2 hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 transform transition-all duration-150 text-[#1F2937] shadow-sm hover:shadow-md active:shadow"
                 title="Send"
               >
                 <Send size={18} />
@@ -121,18 +125,18 @@ export default function ChatTab() {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #CBD5E0;
+          background-color: var(--border);
           border-radius: 3px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: #A0AEC0;
+          background-color: var(--text-secondary);
         }
         .custom-scrollbar {
           scrollbar-width: thin;
-          scrollbar-color: #CBD5E0 transparent;
+          scrollbar-color: var(--border) transparent;
         }
         .custom-scrollbar:hover {
-          scrollbar-color: #A0AEC0 transparent;
+          scrollbar-color: var(--text-secondary) transparent;
         }
       `}</style>
     </div>

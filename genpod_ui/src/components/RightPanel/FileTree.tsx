@@ -218,30 +218,44 @@ export default function FileTree({
   };
 
   const renderNode = (node: FileTreeItem, level = 0) => {
-    const isDirectory = node.type === 'directory'
-    const isOpen = expanded[node.path]
-
     return (
       <div key={node.path} style={{ paddingLeft: `${level * 16}px` }} className="text-sm">
         <div
-          className="flex items-center gap-1 cursor-pointer hover:bg-gray-100 rounded px-1 py-0.5"
+          className={`flex items-center gap-2 px-2 py-1.5 hover:bg-input cursor-pointer group ${
+            node.type === 'directory' ? 'text-textPrimary' : 'text-textSecondary'
+          }`}
           onClick={() => {
-            if (isDirectory) {
+            if (node.type === 'directory') {
               toggle(node.path)
             } else {
               onFileClick?.({ name: node.name, path: node.path })
             }
           }}
         >
-          {isDirectory ? (
-            isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-          ) : (
-            <FileText size={14} />
+          {node.type === 'directory' && (
+            <button className="text-textSecondary hover:text-textPrimary transition-colors">
+              {expanded[node.path] ? (
+                <ChevronDown size={18} />
+              ) : (
+                <ChevronRight size={18} />
+              )}
+            </button>
           )}
-          {isDirectory && <Folder size={14} className="text-blue-500" />}
-          <span>{node.name}</span>
+          {node.type === 'directory' ? (
+            <Folder size={18} className="text-warning" />
+          ) : (
+            <FileText size={18} className="text-textSecondary group-hover:text-textPrimary transition-colors" />
+          )}
+          <span className="group-hover:text-textPrimary transition-colors truncate">
+            {node.name}
+          </span>
         </div>
-        {isDirectory && isOpen && node.children?.map((child) => renderNode(child, level + 1))}
+
+        {node.type === 'directory' && expanded[node.path] && node.children && (
+          <div className="border-l border-border ml-[9px]">
+            {node.children.map((child) => renderNode(child, level + 1))}
+          </div>
+        )}
       </div>
     )
   }
@@ -287,15 +301,32 @@ export default function FileTree({
   const filteredTree = filterTree(tree)
 
   return (
-    <div className="p-2 text-gray-800 text-sm overflow-y-auto h-full">
+    <div className="p-2 text-textPrimary text-sm overflow-y-auto h-full">
       <input
         type="text"
+        placeholder="Search files..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        placeholder="Search files..."
-        className="w-full mb-2 px-2 py-1 border rounded text-sm bg-white shadow-sm"
+        className="w-full mb-2 px-3 py-1.5 bg-input border border-border rounded text-sm text-textPrimary placeholder-textSecondary focus:outline-none focus:border-textSecondary transition-colors"
       />
-      {filteredTree.map((node) => renderNode(node))}
+
+      {connectionStatus === 'connecting' && (
+        <div className="text-textSecondary">Connecting...</div>
+      )}
+
+      {connectionStatus === 'disconnected' && (
+        <div className="text-textSecondary">Disconnected. Reconnecting...</div>
+      )}
+
+      {connectionStatus === 'connected' && !tree && (
+        <div className="text-textSecondary">Loading file tree...</div>
+      )}
+
+      {tree?.length === 0 && (
+        <div className="text-textSecondary">No files found</div>
+      )}
+
+      {tree && tree.length > 0 && filteredTree.map((node) => renderNode(node))}
     </div>
   )
 }

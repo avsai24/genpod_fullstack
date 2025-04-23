@@ -15,14 +15,14 @@ export default function SplitLayout({
     const style = document.createElement('style')
     style.innerHTML = `
   .custom-gutter {
-    background-color: #2a2a2a;
+    background-color: var(--border);
     width: 0.5px;
     cursor: col-resize;
     transition: background-color 0.2s ease;
   }
 
   .custom-gutter:hover {
-    background-color: #3a3a3a; /* subtle on hover */
+    background-color: var(--primary);
   }
 `
     document.head.appendChild(style)
@@ -33,7 +33,7 @@ export default function SplitLayout({
 
   return (
     <Split
-      className="flex w-full h-screen"
+      className="flex w-full h-screen bg-background"
       sizes={[50, 50]}
       minSize={200}
       gutterSize={1.5}
@@ -44,8 +44,8 @@ export default function SplitLayout({
         return gutter
       }}
     >
-      <div className="h-full overflow-auto bg-gray-100 border-r">{left}</div>
-      <div className="h-full overflow-auto bg-white">{right}</div>
+      <div className="h-full overflow-auto bg-surface border-r border-border">{left}</div>
+      <div className="h-full overflow-auto bg-surface">{right}</div>
     </Split>
   )
 }

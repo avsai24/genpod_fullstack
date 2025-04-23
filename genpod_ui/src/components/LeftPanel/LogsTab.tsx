@@ -24,15 +24,15 @@ export default function LogsTab() {
   }, [logs])
 
   return (
-    <div className="w-full h-full flex flex-col bg-black text-white font-mono border border-gray-800 rounded overflow-hidden">
-      <div className="p-3 border-b border-gray-700 text-sm font-semibold text-white bg-gray-900">
+    <div className="w-full h-full flex flex-col bg-background text-textPrimary font-mono border border-border rounded overflow-hidden">
+      <div className="p-3 border-b border-border text-sm font-semibold text-textPrimary bg-surface">
         Real-Time Agent Logs
       </div>
 
       {prompt ? (
         <ul
           ref={scrollRef}
-          className="flex-1 overflow-y-auto text-xs bg-black px-3 py-2 space-y-1"
+          className="flex-1 overflow-y-auto text-xs bg-background px-3 py-2 space-y-1"
         >
           <AnimatePresence initial={false}>
             {logs.map((log, idx) => (
@@ -42,19 +42,19 @@ export default function LogsTab() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="grid grid-cols-[90px_60px_1fr] gap-4 border-b border-gray-800 py-1"
+                className="grid grid-cols-[90px_60px_1fr] gap-4 border-b border-border py-1"
               >
-                <span className="text-gray-500">{log.timestamp || ''}</span>
+                <span className="text-textSecondary">{log.timestamp || ''}</span>
                 <span
                   className={
                     log?.message?.toLowerCase().includes('error')
-                      ? 'text-red-400 font-semibold'
-                      : 'text-green-400 font-semibold'
+                      ? 'text-error font-semibold'
+                      : 'text-success font-semibold'
                   }
                 >
                   [INFO]
                 </span>
-                <span className="text-gray-100">
+                <span className="text-textPrimary">
                   [{log.agent_name || 'System'}] {log.message}
                 </span>
               </motion.li>
@@ -62,7 +62,7 @@ export default function LogsTab() {
           </AnimatePresence>
         </ul>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+        <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
           No logs yet. Start a prompt in the Chat tab.
         </div>
       )}

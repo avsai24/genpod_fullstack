@@ -18,24 +18,22 @@ export default function UserMenu() {
   return (
     <Menu as="div" className="relative inline-block text-left">
       {/* GENPOD Button */}
-      <Menu.Button className="flex items-center gap-2 px-3 py-1 rounded-md transition 
-                              bg-white text-black hover:bg-gray-200
-                              dark:bg-[#1a1a1a] dark:text-white dark:hover:bg-[#2a2a2a]">
+      <Menu.Button className="flex items-center gap-2 px-3 py-1 rounded-md transition-all duration-200 ease-in-out
+                              bg-surface text-text-primary hover:bg-input border border-border">
         <span className="text-sm font-semibold">GENPOD</span>
         <ChevronDown size={16} />
       </Menu.Button>
 
       {/* Dropdown Items */}
       <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md 
-                             border shadow-lg focus:outline-none z-50 
-                             bg-white border-gray-200 text-black
-                             dark:bg-[#1a1a1a] dark:border-[#2a2a2a] dark:text-white">
+                             border shadow-sm focus:outline-none z-50 
+                             bg-surface border-border text-text-primary">
         <div className="py-1 text-sm">
           <Menu.Item>
             {({ active }) => (
               <button
-                className={`flex items-center w-full px-4 py-2 ${
-                  active ? 'bg-gray-100 dark:bg-[#2a2a2a]' : ''
+                className={`flex items-center w-full px-4 py-2 transition-all duration-200 ease-in-out ${
+                  active ? 'bg-input' : ''
                 }`}
               >
                 <User size={16} className="mr-2" />
@@ -47,8 +45,8 @@ export default function UserMenu() {
           <Menu.Item>
             {({ active }) => (
               <button
-                className={`flex items-center w-full px-4 py-2 ${
-                  active ? 'bg-gray-100 dark:bg-[#2a2a2a]' : ''
+                className={`flex items-center w-full px-4 py-2 transition-all duration-200 ease-in-out ${
+                  active ? 'bg-input' : ''
                 }`}
               >
                 <CreditCard size={16} className="mr-2" />
@@ -60,8 +58,8 @@ export default function UserMenu() {
           <Menu.Item>
             {({ active }) => (
               <button
-                className={`flex items-center w-full px-4 py-2 ${
-                  active ? 'bg-gray-100 dark:bg-[#2a2a2a]' : ''
+                className={`flex items-center w-full px-4 py-2 transition-all duration-200 ease-in-out ${
+                  active ? 'bg-input' : ''
                 }`}
               >
                 <Settings size={16} className="mr-2" />
@@ -74,8 +72,8 @@ export default function UserMenu() {
             {({ active }) => (
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className={`flex items-center w-full px-4 py-2 text-red-500 hover:text-white ${
-                  active ? 'bg-red-100 dark:bg-red-600' : ''
+                className={`flex items-center w-full px-4 py-2 text-error transition-all duration-200 ease-in-out ${
+                  active ? 'bg-error/10' : ''
                 }`}
               >
                 <LogOut size={16} className="mr-2" />

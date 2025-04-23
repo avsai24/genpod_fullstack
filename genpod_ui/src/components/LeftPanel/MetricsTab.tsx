@@ -62,11 +62,11 @@ export default function MetricsTab() {
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
-    <div className="p-6 space-y-8 text-sm text-gray-100 bg-[#0a0a0a] min-h-screen">
-      <h2 className="text-2xl font-bold text-white">Real-Time Metrics</h2>
+    <div className="p-6 space-y-8 text-sm text-textPrimary bg-background min-h-screen">
+      <h2 className="text-2xl font-bold text-textPrimary">Real-Time Metrics</h2>
 
       {!isConnected ? (
-        <p className="text-gray-400 animate-pulse">Connecting to metrics agent...</p>
+        <p className="text-textSecondary animate-pulse">Connecting to metrics agent...</p>
       ) : metrics ? (
         <div className="space-y-6">
           <CollapsibleSection title="Project Overview" rows={metrics.project_overview} history={history} open={openSections["overview"]} toggle={() => toggle("overview")} />
@@ -95,8 +95,8 @@ function CollapsibleSection({
   toggle: () => void
 }) {
   return (
-    <div className="border border-[#2a2a2a] rounded-md overflow-hidden">
-      <button onClick={toggle} className="flex justify-between items-center w-full px-4 py-3 text-white bg-[#1a1a1a] hover:bg-[#2a2a2a] transition-colors">
+    <div className="border border-border rounded-md overflow-hidden">
+      <button onClick={toggle} className="flex justify-between items-center w-full px-4 py-3 text-textPrimary bg-surface hover:bg-input transition-colors">
         <span className="font-medium">{title}</span>
         {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
       </button>
@@ -109,9 +109,9 @@ function CollapsibleSection({
             ) : row.name.includes("Error Rate") || row.name === "Current Status" ? (
               <Badge key={i} label={row.name} value={row.value} />
             ) : (
-              <div key={i} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-md px-4 py-3 shadow-sm">
-                <p className="text-gray-400">{row.name}</p>
-                <p className="text-teal-400 font-semibold text-lg">{row.value}</p>
+              <div key={i} className="bg-surface border border-border rounded-md px-4 py-3 shadow-sm">
+                <p className="text-textSecondary">{row.name}</p>
+                <p className="text-accent font-semibold text-lg">{row.value}</p>
               </div>
             )
           )}
@@ -126,20 +126,20 @@ function CollapsibleSection({
               datasets: [{
                 label: 'Completion (%)',
                 data: history,
-                borderColor: '#14b8a6',
-                backgroundColor: '#14b8a666',
+                borderColor: '#3B82F6',
+                backgroundColor: '#3B82F666',
                 fill: true,
                 tension: 0.4
               }]
             }}
             options={{
               scales: {
-                y: { beginAtZero: true, max: 100, ticks: { color: '#ccc' }, grid: { color: '#333' } },
-                x: { ticks: { color: '#ccc' }, grid: { color: '#333' } }
+                y: { beginAtZero: true, max: 100, ticks: { color: '#A1A1AA' }, grid: { color: '#2A2A2A' } },
+                x: { ticks: { color: '#A1A1AA' }, grid: { color: '#2A2A2A' } }
               },
               plugins: {
                 legend: {
-                  labels: { color: '#eee' }
+                  labels: { color: '#E5E5E5' }
                 }
               }
             }}
@@ -152,24 +152,24 @@ function CollapsibleSection({
 }
 
 function ProgressBar({ label, value }: { label: string; value: number }) {
-  const color = value >= 80 ? 'bg-green-500' : value >= 50 ? 'bg-yellow-400' : 'bg-red-500'
+  const color = value >= 80 ? 'bg-success' : value >= 50 ? 'bg-warning' : 'bg-error'
   return (
-    <div className="bg-[#1a1a1a] border border-[#2a2a2a] p-4 rounded-md">
-      <p className="text-gray-400 mb-2">{label}</p>
-      <div className="w-full bg-gray-800 h-3 rounded">
+    <div className="bg-surface border border-border p-4 rounded-md">
+      <p className="text-textSecondary mb-2">{label}</p>
+      <div className="w-full bg-input h-3 rounded">
         <div className={`h-3 rounded ${color}`} style={{ width: `${value}%` }} />
       </div>
-      <p className="text-sm text-right text-white mt-1">{value.toFixed(1)}%</p>
+      <p className="text-sm text-right text-textPrimary mt-1">{value.toFixed(1)}%</p>
     </div>
   )
 }
 
 function Badge({ label, value }: { label: string; value: string }) {
   const parsed = parseFloat(value.replace('%', ''))
-  const badgeColor = isNaN(parsed) ? 'bg-blue-600' : parsed < 1 ? 'bg-green-600' : 'bg-red-600'
+  const badgeColor = isNaN(parsed) ? 'bg-accent' : parsed < 1 ? 'bg-success' : 'bg-error'
   return (
-    <div className="bg-[#1a1a1a] border border-[#2a2a2a] p-4 rounded-md flex flex-col gap-1">
-      <p className="text-gray-400">{label}</p>
+    <div className="bg-surface border border-border p-4 rounded-md flex flex-col gap-1">
+      <p className="text-textSecondary">{label}</p>
       <span className={`px-2 py-1 rounded text-sm font-semibold text-white w-fit ${badgeColor}`}>
         {value}
       </span>
@@ -180,10 +180,10 @@ function Badge({ label, value }: { label: string; value: string }) {
 function ModelTable({ rows }: { rows: TokenModel[] }) {
   return (
     <div className="mt-4">
-      <h3 className="font-semibold text-base text-white mb-2">Token Metrics by Model</h3>
-      <div className="overflow-x-auto border border-[#2a2a2a] rounded-lg">
-        <table className="min-w-full text-sm text-left bg-[#1a1a1a]">
-          <thead className="bg-[#1a1a1a] text-gray-300 border-b border-[#2a2a2a]">
+      <h3 className="font-semibold text-base text-textPrimary mb-2">Token Metrics by Model</h3>
+      <div className="overflow-x-auto border border-border rounded-lg">
+        <table className="min-w-full text-sm text-left bg-surface">
+          <thead className="bg-surface text-textSecondary border-b border-border">
             <tr>
               <th className="px-4 py-2">Model</th>
               <th className="px-4 py-2">Calls</th>
@@ -192,14 +192,14 @@ function ModelTable({ rows }: { rows: TokenModel[] }) {
               <th className="px-4 py-2">Total Cost</th>
             </tr>
           </thead>
-          <tbody className="text-gray-200">
+          <tbody className="text-textPrimary">
             {rows.map((row, i) => (
-              <tr key={i} className="border-t border-[#2a2a2a]">
+              <tr key={i} className="border-t border-border">
                 <td className="px-4 py-2">{row.model}</td>
                 <td className="px-4 py-2">{row.calls}</td>
                 <td className="px-4 py-2">{row.input_tokens}</td>
                 <td className="px-4 py-2">{row.output_tokens}</td>
-                <td className="px-4 py-2 text-green-400 font-semibold">{row.total_cost}</td>
+                <td className="px-4 py-2">{row.total_cost}</td>
               </tr>
             ))}
           </tbody>

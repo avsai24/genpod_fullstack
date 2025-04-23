@@ -16,23 +16,23 @@ type Props = {
 
 export default function FileTabs({ openFiles, activePath, onSelect, onClose }: Props) {
   return (
-    <div className="flex bg-white border-b overflow-x-auto text-sm">
+    <div className="flex bg-surface border-b border-border overflow-x-auto text-sm">
       {openFiles.map((file) => {
         const isActive = file.path === activePath
 
         return (
           <div
             key={file.path}
-            className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer border-r select-none transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer border-r border-border select-none transition-colors ${
               isActive
-                ? 'bg-blue-100 text-blue-800 font-semibold'
-                : 'text-gray-700 hover:bg-gray-100'
+                ? 'bg-background text-textPrimary font-semibold'
+                : 'text-textSecondary hover:bg-input'
             }`}
             onClick={() => onSelect(file.path)}
           >
             <span>{file.name}</span>
             <button
-              className="hover:text-red-500"
+              className="hover:text-error"
               onClick={(e) => {
                 e.stopPropagation()
                 onClose(file.path)
