@@ -281,15 +281,22 @@ function WorkflowCanvas() {
     // Helper function for node creation
     const addNode = (id: string, type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success', label: React.ReactNode) => {
       const position = nodePositions[id] || defaultPositions[id]
+      const status = getNodeLabel(id).props.children[1].props.children
       
       nodes.push({
         id,
-        data: { label },
+        data: { 
+          label,
+          status
+        },
         position,
-        style: getNodeStyle(type),
+        style: {
+          ...getNodeStyle(type),
+          animation: status === 'Running' ? 'blink 1.5s ease-in-out infinite' : 'none'
+        },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
-        draggable: true,
+        draggable: true
       })
     }
 
@@ -472,6 +479,16 @@ function WorkflowCanvas() {
         }
         .react-flow__edge:hover {
           stroke-opacity: 1 !important;
+        }
+        @keyframes blink {
+          0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 20px currentColor;
+          }
+          50% {
+            opacity: 0.7;
+            box-shadow: 0 0 30px currentColor;
+          }
         }
       `}</style>
     </div>
