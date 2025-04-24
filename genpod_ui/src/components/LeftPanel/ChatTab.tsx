@@ -42,30 +42,30 @@ export default function ChatTab() {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
         {prompt && (
           <div className="flex justify-end">
-            <div className="bg-accent/10 text-accent rounded-lg px-4 py-2 max-w-[45%]">
-              <p className="text-sm whitespace-pre-wrap break-words">{prompt}</p>
+            <div className="bg-input border border-border text-textPrimary rounded-lg px-4 py-2 max-w-[45%]">
+            <p className="text-sm text-white font-medium whitespace-pre-wrap break-words">{prompt}</p>
             </div>
           </div>
         )}
 
-        {answer && (
-          <div className="w-full bg-input border border-border rounded-lg px-6 py-4">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-              {answer}
-            </ReactMarkdown>
-          </div>
-        )}
+      {answer && (
+        <div className="w-full text-textPrimary leading-relaxed px-1">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+            {answer}
+          </ReactMarkdown>
+        </div>
+      )}
 
-        {isStreaming && (
-          <div className="flex items-center gap-2 text-sm text-textSecondary">
-            <div className="flex space-x-1">
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <span className="w-2 h-2 bg-accent rounded-full animate-bounce" />
-            </div>
-            <span>Genpod is thinking...</span>
+      {isStreaming && (
+        <div className="flex items-center gap-2 text-sm text-textSecondary">
+          <div className="flex space-x-1">
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce" />
           </div>
-        )}
+          <span>Genpod is thinking...</span>
+        </div>
+      )}
 
         <div ref={messagesEndRef} />
       </div>

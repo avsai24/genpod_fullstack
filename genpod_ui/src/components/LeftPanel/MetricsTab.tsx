@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Chart as ChartJS, LineElement, PointElement, CategoryScale, LinearScale } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { useAgentStreamStore } from '@/state/agentStreamStore'
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale)
 
@@ -29,8 +30,15 @@ export default function MetricsTab() {
   const [isConnected, setIsConnected] = useState(false)
   const [history, setHistory] = useState<number[]>([])
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const prompt = useAgentStreamStore((s) => s.prompt)
 
   useEffect(() => {
+    if (!prompt) {
+      setMetrics(null)
+      setIsConnected(false)
+      return
+    }
+
     const eventSource = new EventSource('/api/metrics')
 
     eventSource.onmessage = (event) => {
@@ -62,10 +70,14 @@ export default function MetricsTab() {
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
-    <div className="p-6 space-y-8 text-sm text-textPrimary bg-background min-h-screen">
-      <h2 className="text-2xl font-bold text-textPrimary">Real-Time Metrics</h2>
+    <div className="flex flex-col h-full overflow-y-auto p-6 space-y-8 text-sm text-textPrimary bg-background custom-scrollbar">
+      {/* <h2 className="text-2xl font-bold text-textPrimary">Real-Time Metrics</h2> */}
 
-      {!isConnected ? (
+      {!prompt ? (
+       <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
+       No workflow yet. Start with a prompt to see metrics.
+     </div>
+      ) : !isConnected ? (
         <p className="text-textSecondary animate-pulse">Connecting to metrics agent...</p>
       ) : metrics ? (
         <div className="space-y-6">

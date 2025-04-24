@@ -40,10 +40,10 @@ export default function ConfigureTab() {
   }, [])
 
   return (
-    <div className="w-full h-full px-6 py-8 bg-gray-50 overflow-auto">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="w-full h-full px-6 py-8 bg-background text-textPrimary overflow-auto">
+      <div className="max-w-4xl mx-auto bg-surface rounded-xl shadow-soft border border-border">
         {/* Sub-tab switcher */}
-        <div className="flex gap-4 border-b border-gray-200 px-6 pt-4">
+        <div className="flex gap-4 border-b border-border px-6 pt-4">
           {(['Prompt', 'Settings'] as const).map((tab) => (
             <button
               key={tab}
@@ -51,8 +51,8 @@ export default function ConfigureTab() {
               className={`py-2 px-4 text-sm font-medium rounded-t-md border-b-2 transition-all
                 ${
                   selectedTab === tab
-                    ? 'text-blue-600 border-blue-500 bg-white'
-                    : 'text-gray-500 border-transparent hover:text-blue-500 hover:bg-gray-50'
+                    ? 'text-white border-white'
+                    : 'text-textSecondary border-transparent hover:text-white hover:bg-input'
                 }`}
             >
               {tab}

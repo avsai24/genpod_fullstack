@@ -1,61 +1,52 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-
-type Insights = {
-  top_queries: string[]
-  error_rate: string
-  active_users: number
-}
+import { useAgentStreamStore } from '@/state/agentStreamStore'
+import { CheckCircle2 } from 'lucide-react'
 
 export default function InsightsTab() {
-  const [insights, setInsights] = useState<Insights | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
-
-  useEffect(() => {
-    const eventSource = new EventSource('/api/insights')
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        setInsights(data.insights)
-        setIsConnected(true)
-      } catch (err) {
-        console.error('❌ Failed to parse insights data:', err)
-      }
-    }
-
-    eventSource.onerror = (err) => {
-      console.error('🔌 SSE error:', err)
-      eventSource.close()
-      setIsConnected(false)
-    }
-
-    return () => eventSource.close()
-  }, [])
+  const prompt = useAgentStreamStore((s) => s.prompt)
 
   return (
-    <div className="p-6 space-y-4 text-sm text-gray-900">
-      <h2 className="text-lg font-semibold">📈 Insights</h2>
-      {isConnected ? (
-        insights ? (
-          <div className="space-y-2">
+    <div className="h-full flex flex-col bg-background text-textPrimary p-6">
+      {prompt ? (
+        <>
+          <h2 className="text-2xl font-semibold mb-6">Insights Overview</h2>
+          
+          <div className="space-y-8">
             <div>
-              <strong>Top Queries:</strong>
-              <ul className="list-disc ml-5 text-gray-700">
-                {insights.top_queries.map((query, idx) => (
-                  <li key={idx}>{query}</li>
-                ))}
-              </ul>
+              <h3 className="text-lg font-medium mb-4">Top Queries</h3>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="text-success" size={16} />
+                  <span>configure AI agents</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="text-success" size={16} />
+                  <span>setup prompts</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="text-success" size={16} />
+                  <span>track agent memory</span>
+                </div>
+              </div>
             </div>
-            <p><strong>Error Rate:</strong> {insights.error_rate}</p>
-            <p><strong>Active Users:</strong> {insights.active_users}</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-surface border border-border rounded-lg p-4">
+                <div className="text-sm text-textSecondary">Error Rate</div>
+                <div className="text-2xl font-semibold mt-1">1.7%</div>
+              </div>
+              <div className="bg-surface border border-border rounded-lg p-4">
+                <div className="text-sm text-textSecondary">Active Users</div>
+                <div className="text-2xl font-semibold mt-1">113</div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <p>Waiting for insights...</p>
-        )
+        </>
       ) : (
-        <p className="text-gray-500">Connecting to server...</p>
+        <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
+          No workflow yet. Start with a prompt.
+        </div>
       )}
     </div>
   )

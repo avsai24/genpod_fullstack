@@ -242,8 +242,7 @@ export default function FileTree({
             </button>
           )}
           {node.type === 'directory' ? (
-            <Folder size={18} className="text-warning" />
-          ) : (
+            <Folder size={18} className="text-textSecondary group-hover:text-textPrimary transition-colors" />          ) : (
             <FileText size={18} className="text-textSecondary group-hover:text-textPrimary transition-colors" />
           )}
           <span className="group-hover:text-textPrimary transition-colors truncate">

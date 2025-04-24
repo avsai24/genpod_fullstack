@@ -57,9 +57,9 @@ export default function PromptEditor() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Edit AI Prompt (YAML)</h2>
+      <h2 className="text-lg font-semibold text-textPrimary">Edit AI Prompt (YAML)</h2>
 
-      <div className="border border-gray-300 rounded overflow-hidden shadow-sm">
+      <div className="border border-border rounded-lg overflow-hidden shadow-soft">
         <Editor
           height="400px"
           defaultLanguage="yaml"
@@ -76,7 +76,7 @@ export default function PromptEditor() {
 
       <div className="flex items-center gap-3">
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+  className="bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white px-4 py-2 rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"          
           disabled={!isDirty || status === 'loading'}
           onClick={handleSave}
         >
@@ -84,10 +84,10 @@ export default function PromptEditor() {
         </button>
 
         {status === 'saved' && (
-          <span className="text-green-600 text-sm">Saved</span>
+          <span className="text-accent/80 text-sm">Saved</span>
         )}
         {status === 'error' && (
-          <span className="text-red-500 text-sm">Error saving</span>
+          <span className="text-error text-sm">Error saving</span>
         )}
       </div>
     </div>

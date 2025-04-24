@@ -39,7 +39,7 @@ export default function SettingsForm() {
           setMaskedToken(true)
         }
       } catch {
-        setMessage(' Failed to fetch settings.')
+        setMessage('Failed to fetch settings.')
       } finally {
         setLoading(false)
       }
@@ -56,12 +56,11 @@ export default function SettingsForm() {
       return
     }
 
-    // Don't submit if nothing changed
     if (
       platformName === originalSettings.platformName &&
       accessToken === originalSettings.accessToken
     ) {
-      setMessage(' No changes to save.')
+      setMessage('No changes to save.')
       return
     }
 
@@ -87,7 +86,7 @@ export default function SettingsForm() {
         setMessage(`${data.detail || 'Failed to save settings.'}`)
       }
     } catch {
-      setMessage(' Server error while saving.')
+      setMessage('Server error while saving.')
     }
   }
 
@@ -102,15 +101,17 @@ export default function SettingsForm() {
     : accessToken
 
   return (
-    <div className="p-6 space-y-4 text-sm text-gray-900">
+    <div className="p-6 space-y-4 text-sm text-textPrimary bg-surface rounded-lg shadow-soft">
       <h2 className="text-lg font-semibold">Git Integration Settings</h2>
 
       {loading ? (
-        <p>Loading...</p>
+        <p className="text-textSecondary">Loading...</p>
       ) : (
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block font-medium mb-1">Git Platform Name</label>
+            <label className="block font-medium mb-1 text-textSecondary">
+              Git Platform Name
+            </label>
             <input
               type="text"
               value={platformName}
@@ -118,14 +119,16 @@ export default function SettingsForm() {
                 setPlatformName(e.target.value)
                 setMessage(null)
               }}
-              className="w-full px-3 py-2 border rounded border-gray-300"
+              className="w-full px-3 py-2 bg-background border border-border rounded text-textPrimary"
               placeholder="e.g. GitHub"
               required
             />
           </div>
 
           <div>
-            <label className="block font-medium mb-1">Personal Access Token</label>
+            <label className="block font-medium mb-1 text-textSecondary">
+              Personal Access Token
+            </label>
             <div className="relative">
               <input
                 type={showToken ? 'text' : 'password'}
@@ -135,28 +138,30 @@ export default function SettingsForm() {
                   setMaskedToken(false)
                   setMessage(null)
                 }}
-                className="w-full px-3 py-2 border rounded border-gray-300 pr-10"
+                className="w-full px-3 py-2 bg-background border border-border rounded pr-10 text-textPrimary"
                 placeholder="••••••••••••••••••••••••••••••••"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowToken(!showToken)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-textSecondary hover:text-white"
               >
                 {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          {message && <p className="text-sm text-blue-600">{message}</p>}
+          {message && (
+            <p className="text-sm text-textSecondary">{message}</p>
+          )}
 
           <button
             type="submit"
-            className={`px-4 py-2 rounded text-white ${
+            className={`px-4 py-2 rounded-md text-white transition ${
               isChanged
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
+                ? 'bg-[#2f2f2f] hover:bg-[#3a3a3a]'
+                : 'bg-muted/40 cursor-not-allowed'
             }`}
             disabled={!isChanged}
           >

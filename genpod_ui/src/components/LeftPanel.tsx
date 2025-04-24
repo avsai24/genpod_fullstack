@@ -4,16 +4,15 @@ import { useState } from 'react'
 import ChatTab from './LeftPanel/ChatTab'
 import MetricsTab from './LeftPanel/MetricsTab'
 import LogsTab from './LeftPanel/LogsTab'
-import WorkflowTab from './LeftPanel/WorkflowTab' // ✅ NEW
+import WorkflowTab from './LeftPanel/WorkflowTab'
 
 import {
   MessageSquare,
   BarChart2,
   FileText,
-  Share2, // ✅ NEW icon
+  Share2,
 } from 'lucide-react'
 
-// ✅ Added 'Workflow' to the list
 const TABS = ['Chat', 'Metrics', 'Logs', 'Workflow'] as const
 type Tab = (typeof TABS)[number]
 
@@ -29,7 +28,7 @@ export default function LeftPanel() {
       case 'Logs':
         return <LogsTab />
       case 'Workflow':
-        return <WorkflowTab /> // ✅ Added Workflow renderer
+        return <WorkflowTab />
     }
   }
 
@@ -42,7 +41,7 @@ export default function LeftPanel() {
       case 'Logs':
         return <FileText size={16} />
       case 'Workflow':
-        return <Share2 size={16} /> // ✅ Icon for Workflow
+        return <Share2 size={16} />
     }
   }
 

@@ -6,24 +6,42 @@ import PreviewView from './RightPanel/PreviewView'
 import ConfigureTab from './RightPanel/ConfigureTab'
 import InsightsTab from './RightPanel/InsightsTab'
 import UserMenu from '@/components/auth/UserMenu'
+import {
+  Code2,
+  Eye,
+  Settings,
+  Lightbulb
+} from 'lucide-react'
 
 const TABS = ['Code', 'Preview', 'Configure', 'Insights'] as const
 type Tab = (typeof TABS)[number]
 
 export default function RightPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('Code')
-  const projectPath = '/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui'
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'Code':
         return <CodeView />
       case 'Preview':
-        return <PreviewView projectPath={projectPath} />
+        return <PreviewView />
       case 'Configure':
         return <ConfigureTab />
       case 'Insights':
         return <InsightsTab />
+    }
+  }
+
+  const getIcon = (tab: Tab) => {
+    switch (tab) {
+      case 'Code':
+        return <Code2 size={16} />
+      case 'Preview':
+        return <Eye size={16} />
+      case 'Configure':
+        return <Settings size={16} />
+      case 'Insights':
+        return <Lightbulb size={16} />
     }
   }
 
@@ -44,6 +62,7 @@ export default function RightPanel() {
                     : 'border-transparent text-text-secondary hover:text-primary hover:bg-surface'
                 }`}
             >
+              {getIcon(tab)}
               <span>{tab}</span>
             </button>
           ))}

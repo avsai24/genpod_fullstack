@@ -24,11 +24,7 @@ export default function LogsTab() {
   }, [logs])
 
   return (
-    <div className="w-full h-full flex flex-col bg-background text-textPrimary font-mono border border-border rounded overflow-hidden">
-      <div className="p-3 border-b border-border text-sm font-semibold text-textPrimary bg-surface">
-        Real-Time Agent Logs
-      </div>
-
+    <div className="w-full h-full flex flex-col bg-background text-textPrimary border border-border rounded overflow-hidden">
       {prompt ? (
         <ul
           ref={scrollRef}

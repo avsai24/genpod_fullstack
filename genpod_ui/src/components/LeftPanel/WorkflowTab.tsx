@@ -19,24 +19,24 @@ const edgeTypes = {}
 
 const NODE_COLORS = {
   prompt: {
-    background: 'rgba(59, 130, 246, 0.1)',    // Accent color with opacity
-    border: 'rgba(59, 130, 246, 0.3)',
-    text: '#3B82F6'
+    background: 'rgba(71, 58, 0, 0.55)',    // Subtle golden brown
+    border: 'rgba(255, 215, 0, 0.3)',
+    text: '#FFD700'
   },
   supervisor: {
-    background: 'rgba(34, 197, 94, 0.1)',    // Success color with opacity
-    border: 'rgba(34, 197, 94, 0.3)',
-    text: '#22C55E'
+    background: 'rgba(0, 71, 35, 0.55)',    // Deep forest green
+    border: 'rgba(0, 255, 127, 0.2)',
+    text: '#00FF7F'
   },
   reviewer: {
-    background: 'rgba(234, 179, 8, 0.1)',    // Warning color with opacity
-    border: 'rgba(234, 179, 8, 0.3)',
-    text: '#EAB308'
+    background: 'rgba(13, 115, 119, 0.55)', // Teal
+    border: 'rgba(20, 184, 166, 0.3)',
+    text: '#2DD4BF'
   },
   workflow_success: {
-    background: 'rgba(239, 68, 68, 0.1)',    // Error color with opacity
-    border: 'rgba(239, 68, 68, 0.3)',
-    text: '#EF4444'
+    background: 'rgba(75, 0, 130, 0.55)',   // Deep violet
+    border: 'rgba(147, 112, 219, 0.2)',
+    text: '#B19CD9'
   }
 }
 
@@ -44,14 +44,14 @@ const getNodeStyle = (type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_suc
   const base = {
     padding: '25px',
     borderRadius: '16px',
-    border: '1px solid var(--border)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
     width: 280,
     fontSize: 16,
     textAlign: 'center' as const,
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(12px)',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-    background: 'var(--surface)',
+    background: 'rgba(20, 42, 45, 0.7)',
   }
 
   const colors = NODE_COLORS[type] || NODE_COLORS.reviewer
@@ -74,17 +74,17 @@ const getEdgeStyle = (sourceType: string) => {
     case 'supervisor':
       return {
         ...baseStyle,
-        stroke: '#22C55E'  // Success color for supervisor connections
+        stroke: '#00FF7F'  // Green for supervisor connections
       }
     case 'reviewer':
       return {
         ...baseStyle,
-        stroke: '#EAB308'  // Warning color for reviewer connections
+        stroke: '#0095FF'  // Blue for reviewer connections
       }
     default:
       return {
         ...baseStyle,
-        stroke: '#3B82F6'  // Accent color for prompt connections
+        stroke: '#FFD700'  // Gold for prompt connections
       }
   }
 }
@@ -198,193 +198,321 @@ function WorkflowCanvas() {
       const recentLogs = logs
         .filter(log => log.agent_name.toLowerCase() === agentId.toLowerCase())
         .slice(-5) // Look at last 5 logs
-      return recentLogs.some(log => log.message.includes('working on:'))
+      
+      // Check if we have a "working on" log more recent than the last "completed" log
+      const lastWorkingIndex = recentLogs.findLastIndex(log => log.message.includes('working on:'))
+      const lastCompletedIndex = recentLogs.findLastIndex(log => log.message.includes('completed:'))
+      
+      return lastWorkingIndex > lastCompletedIndex
     }
 
+    // Get calls count display
     const getCallsDisplay = (agentId: string) => {
-      const calls = agentId === 'supervisor' ? getSupervisorCalls() : getAgentCalls(agentId)
-      const isRunning = isAgentRunning(agentId)
-      return (
-        <div className="text-sm">
-          <span className="text-textSecondary">
-            {calls.completed}/{calls.total} tasks
-          </span>
-          {isRunning && (
-            <span className="ml-2 text-accent animate-pulse">●</span>
-          )}
-        </div>
-      )
+      const calls = agentId === 'supervisor' ? 
+        getSupervisorCalls() : 
+        getAgentCalls(agentId)
+      return `${calls.completed}/${calls.total}`
     }
 
+    // Get status display
     const getStatusDisplay = (id: string) => {
-      if (id === 'prompt') {
-        return prompt ? (
-          <div className="text-sm text-textSecondary mt-2">
-            {prompt.length > 50 ? prompt.slice(0, 50) + '...' : prompt}
-          </div>
-        ) : null
-      }
-
+      if (id === 'prompt') return 'Ready'
+      
       if (id === 'complete') {
-        const allAgents = Object.keys(workflow?.agents || {})
-        const allCalls = allAgents.map(agentId => getAgentCalls(agentId))
-        const totalTasks = allCalls.reduce((sum, count) => sum + count.total, 0)
-        const completedTasks = allCalls.reduce((sum, count) => sum + count.completed, 0)
-        const isComplete = totalTasks > 0 && totalTasks === completedTasks
-
-        return (
-          <div className="text-sm mt-2">
-            <span className={isComplete ? 'text-success' : 'text-textSecondary'}>
-              {completedTasks}/{totalTasks} tasks complete
-            </span>
-          </div>
+        const allAgentCounts = Object.keys(workflow?.agents || {})
+          .filter(name => name !== 'supervisor')
+          .map(agentId => getAgentCalls(agentId))
+        
+        const allTasksComplete = allAgentCounts.every(counts => 
+          counts.completed === counts.total && counts.total > 0
         )
+        
+        return workflow?.completed && allTasksComplete ? 'Complete' : 'idle'
       }
 
-      return getCallsDisplay(id)
+      // For supervisor
+      if (id === 'supervisor') {
+        const { total, completed } = getSupervisorCalls()
+        const anyAgentRunning = Object.keys(workflow?.agents || {})
+          .filter(name => name !== 'supervisor')
+          .some(agentId => isAgentRunning(agentId))
+
+        if (anyAgentRunning) return 'Running'
+        if (completed < total) return 'idle'
+        return completed === total ? 'Complete' : 'idle'
+      }
+
+      // For regular agents
+      const counts = getAgentCalls(id)
+      if (isAgentRunning(id)) return 'Running'
+      if (counts.completed < counts.total) return 'idle'
+      return counts.completed === counts.total ? 'Complete' : 'idle'
     }
 
     return (
-      <div>
-        <div className="font-semibold">{displayName}</div>
-        {getStatusDisplay(id)}
+      <div className="flex flex-col items-center">
+        <div className="text-2xl font-semibold mb-2">{displayName}</div>
+        <div className="text-sm opacity-60 mb-4">
+          {getStatusDisplay(id)}
+        </div>
+        {id !== 'prompt' && id !== 'complete' && (
+          <div className="text-sm opacity-80 space-y-1">
+            <div>LangChain</div>
+            <div>{getCallsDisplay(id)}</div>
+          </div>
+        )}
+        {(id === 'prompt' || id === 'complete') && (
+          <div className="text-sm opacity-80 space-y-1">
+            <div>&nbsp;</div>
+            <div>&nbsp;</div>
+          </div>
+        )}
       </div>
     )
   }
 
-  const addNode = (id: string, type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success', label: React.ReactNode) => {
-    const position = nodePositions[id] || getDefaultPositions()[id]
-    if (!position) return
+  const { flowNodes, flowEdges } = useMemo(() => {
+    if (!workflow) return { flowNodes: [], flowEdges: [] }
 
-    const node: Node = {
-      id,
-      type: 'default',
-      position,
-      data: { label },
-      style: getNodeStyle(type),
-    }
+    const nodes: Node[] = []
+    const edges: Edge[] = []
+    const defaultPositions = getDefaultPositions()
 
-    setNodes(nodes => [...nodes, node])
-  }
-
-  // Update nodes and edges when workflow changes
-  useEffect(() => {
-    if (!workflow) return
-
-    // Clear existing nodes and edges
-    setNodes([])
-    setEdges([])
-
-    // Add prompt node
-    addNode('prompt', 'prompt', getNodeLabel('prompt'))
-
-    // Add supervisor node
-    if (workflow.agents.supervisor) {
-      addNode('supervisor', 'supervisor', getNodeLabel('supervisor'))
-    }
-
-    // Add other agent nodes
-    Object.keys(workflow.agents)
-      .filter(name => name !== 'supervisor')
-      .forEach(agentId => {
-        addNode(agentId, 'reviewer', getNodeLabel(agentId))
+    // Helper function for node creation
+    const addNode = (id: string, type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success', label: React.ReactNode) => {
+      const position = nodePositions[id] || defaultPositions[id]
+      const status = getNodeLabel(id).props.children[1].props.children
+      
+      nodes.push({
+        id,
+        data: { 
+          label,
+          status
+        },
+        position,
+        style: {
+          ...getNodeStyle(type),
+          animation: status === 'Running' ? 'blink 1.5s ease-in-out infinite' : 'none'
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        draggable: true
       })
+    }
 
-    // Add completion node
-    addNode('complete', 'workflow_success', getNodeLabel('complete'))
-
-    // Add edges
-    const newEdges: Edge[] = []
-
-    // Connect prompt to supervisor
-    if (workflow.agents.supervisor) {
-      newEdges.push({
-        id: 'prompt-supervisor',
+    // Add main workflow nodes
+    addNode('prompt', 'prompt', getNodeLabel('prompt'))
+    
+    if (workflow.agents['supervisor']) {
+      const supervisorAgent = workflow.agents['supervisor']
+      addNode('supervisor', 'supervisor', getNodeLabel('supervisor'))
+      
+      edges.push({
+        id: 'e-prompt-supervisor',
         source: 'prompt',
         target: 'supervisor',
-        type: 'default',
+        type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed },
         style: getEdgeStyle('prompt'),
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-        },
       })
     }
 
-    // Connect supervisor to agents
-    Object.keys(workflow.agents)
-      .filter(name => name !== 'supervisor')
-      .forEach(agentId => {
-        newEdges.push({
-          id: `supervisor-${agentId}`,
-          source: 'supervisor',
-          target: agentId,
-          type: 'default',
-          style: getEdgeStyle('supervisor'),
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        })
+    // Always show workflow node
+    addNode('complete', 'workflow_success', getNodeLabel('complete'))
+    
+    if (workflow.agents['supervisor']) {
+      edges.push({
+        id: 'e-supervisor-complete',
+        source: 'supervisor',
+        target: 'complete',
+        type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: getEdgeStyle('supervisor'),
       })
+    }
 
-    // Connect agents to completion
-    Object.keys(workflow.agents)
-      .filter(name => name !== 'supervisor')
-      .forEach(agentId => {
-        newEdges.push({
-          id: `${agentId}-complete`,
-          source: agentId,
-          target: 'complete',
-          type: 'default',
-          style: getEdgeStyle('reviewer'),
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-        })
+    // Add agent nodes
+    const otherAgents = Object.entries(workflow.agents).filter(([name]) => name !== 'supervisor')
+    otherAgents.forEach(([agentId, agentData]) => {
+      addNode(agentId, 'reviewer', getNodeLabel(agentId))
+      
+      edges.push({
+        id: `e-supervisor-${agentId}`,
+        source: 'supervisor',
+        target: agentId,
+        type: 'smoothstep',
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: getEdgeStyle('supervisor'),
       })
+    })
 
-    setEdges(newEdges)
-  }, [workflow, prompt, logs, nodePositions])
+    return { flowNodes: nodes, flowEdges: edges }
+  }, [workflow, nodePositions, getDefaultPositions])
+
+  useEffect(() => {
+    if (flowNodes.length > 0 || flowEdges.length > 0) {
+      setNodes(flowNodes)
+      setEdges(flowEdges)
+    }
+  }, [flowNodes, flowEdges])
+
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (node.id === 'prompt') {
+      setShowPromptModal(true)
+    } else {
+      setSelectedNodeId(node.id)
+    }
+  }, [])
+
+  const nodeLogs = useMemo(() => {
+    return selectedNodeId
+      ? logs.filter((l) => l.agent_name.toLowerCase() === selectedNodeId)
+      : []
+  }, [selectedNodeId, logs])
+
+  // Handle node drag
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    updateNodePosition(node.id, node.position)
+  }, [updateNodePosition])
+
+  const flowProps = useMemo(() => ({
+    nodes,
+    edges,
+    nodeTypes,
+    edgeTypes,
+    onNodesChange,
+    onEdgesChange,
+    onNodeClick: handleNodeClick,
+    onNodeDragStop,
+    fitView: true,
+  }), [nodes, edges, onNodesChange, onEdgesChange, handleNodeClick, onNodeDragStop])
 
   return (
-    <div ref={containerRef} className="w-full h-full bg-background">
-      {workflow && Object.keys(workflow.agents || {}).length > 0 ? (
-        <ReactFlow
+    <div ref={containerRef} className="relative w-full h-full bg-[#0a0a0a]">
+      {prompt ? (
+        <ReactFlow 
+          {...flowProps}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onNodeDragStop={(_, node) => {
-            updateNodePosition(node.id, node.position)
-          }}
+          onNodeDragStop={onNodeDragStop}
           fitView
-          attributionPosition="bottom-left"
+          fitViewOptions={{ 
+            padding: 0.2,
+            includeHiddenNodes: true,
+            minZoom: 0.5,
+            maxZoom: 1.5
+          }}
         >
-          <Background color="#2A2A2A" gap={16} />
-          <Controls />
+          <Background color="#333" gap={20} size={1} />
+          <Controls className="text-white" />
         </ReactFlow>
       ) : (
-        <div className="h-full flex flex-col items-center justify-center text-sm text-textSecondary">
-          <div className="flex flex-col items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 6.1H3"/>
-              <path d="M21 12.1H3"/>
-              <path d="M15.5 18.1H3"/>
-            </svg>
-            <p>No workflow visualization yet.</p>
-            <p>Start a prompt in the Chat tab to see the workflow.</p>
+        <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
+          No workflow yet. Start a prompt in the Chat tab.
+        </div>
+      )}
+
+      <button
+        onClick={getDefaultPositions}
+        className="absolute top-4 left-4 z-10 px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-600/30 transition-colors duration-200"
+      >
+        Reset Layout
+      </button>
+
+      {showPromptModal && (
+        <div className="absolute top-4 right-4 w-96 bg-gray-900/70 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-lg p-4 z-10 animate-fadeIn text-white">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-sm font-semibold">Prompt</h2>
+            <button onClick={() => setShowPromptModal(false)} className="text-gray-400 hover:text-white">✕</button>
+          </div>
+          <pre className="text-xs max-h-72 overflow-y-auto whitespace-pre-wrap text-gray-300">{prompt}</pre>
+        </div>
+      )}
+
+      {selectedNodeId && selectedNodeId !== 'prompt' && (
+        <div className="absolute top-4 right-4 w-96 bg-gray-900/70 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-lg p-4 z-10 animate-fadeIn text-white">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-sm font-semibold">Logs: {selectedNodeId}</h2>
+            <button onClick={() => setSelectedNodeId(null)} className="text-gray-400 hover:text-white">✕</button>
+          </div>
+          <div className="max-h-72 overflow-y-auto text-xs space-y-1">
+            {nodeLogs.length ? nodeLogs.map((log, idx) => (
+              <div key={idx}>
+                <span className="text-gray-500 mr-2">{log.timestamp}</span>
+                <span className="text-gray-300">{log.message}</span>
+              </div>
+            )) : <p className="italic text-gray-600">No logs found.</p>}
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 15px currentColor;
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.02);
+            box-shadow: 0 0 25px currentColor;
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .react-flow__node {
+          transition: transform 0.2s ease;
+        }
+        .react-flow__node:hover {
+          transform: translateY(-2px);
+        }
+        .react-flow__edge {
+          transition: stroke-opacity 0.2s ease;
+        }
+        .react-flow__edge:hover {
+          stroke-opacity: 1 !important;
+        }
+        @keyframes blink {
+          0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 20px currentColor;
+          }
+          50% {
+            opacity: 0.7;
+            box-shadow: 0 0 30px currentColor;
+          }
+        }
+      `}</style>
     </div>
   )
 }
 
 export default function WorkflowTab() {
+  const prompt = useAgentStreamStore((s) => s.prompt)
+
   return (
-    <div className="w-full h-full bg-background">
-      <ReactFlowProvider>
+    <ReactFlowProvider>
+      {prompt ? (
         <WorkflowCanvas />
-      </ReactFlowProvider>
-    </div>
+      ) : (
+        <div className="h-full w-full flex items-center justify-center text-sm text-textSecondary bg-background">
+          No workflow yet. Start a prompt in the Chat tab.
+        </div>
+      )}
+    </ReactFlowProvider>
   )
 }
