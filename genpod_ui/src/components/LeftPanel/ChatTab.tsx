@@ -23,7 +23,7 @@ export default function ChatTab() {
   const handleSend = () => {
     if (!input.trim()) return
     console.log('📤 Sending message:', input.trim())
-    startAgentStream(input.trim(), 'user')
+    startAgentStream(input.trim())
     setInput('')
   }
 
@@ -69,6 +69,31 @@ export default function ChatTab() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Suggestion bubbles */}
+      {!prompt && (
+        <div className="px-4 pb-3">
+          <div className="flex flex-wrap gap-2">
+            {[
+              "Create a blog generator app",
+              "Build a REST API for book reviews",
+              "Generate a React dashboard with charts",
+              "Set up a Node.js + Express backend",
+              "Build a landing page with Tailwind"
+            ].map((suggestion, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  startAgentStream(suggestion)
+                }}
+                className="px-3 py-1.5 text-sm bg-input text-textSecondary border border-border rounded-full hover:bg-surface hover:text-textPrimary hover:border-textSecondary transition-colors duration-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input bar */}
       <div className="bg-surface p-3 border-t border-border">
