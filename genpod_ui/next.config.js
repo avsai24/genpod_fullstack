@@ -8,7 +8,7 @@ const nextConfig = {
       },
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',  // Proxy all other API routes
+        destination: 'http://localhost:50052/api/:path*',  // Proxy all other API routes
       },
     ]
   },
