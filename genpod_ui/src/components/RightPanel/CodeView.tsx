@@ -1,46 +1,38 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import FileTree from './FileTree'
-import FileTabs, { OpenFile } from './FileTabs'
+import FileTabs from './FileTabs'
 import MonacoViewer from './MonacoViewer'
 import { useFileStore } from '@/state/fileStore'
+import { useAgentStreamStore } from '@/state/agentStreamStore'
+import { useProjectStore } from '@/state/projectStore'
 
 export default function CodeView() {
-  const [projectPath, setProjectPath] = useState<string | null>(null)
-  const [openFiles, setOpenFiles] = useState<OpenFile[]>([])
-  const [activePath, setActivePath] = useState<string | null>(null)
+  const prompt = useAgentStreamStore((s) => s.prompt)
   const { cleanup } = useFileStore()
+  const {
+    projectPath,
+    openFiles,
+    activePath,
+    setProjectPath,
+    addFile,
+    closeFile,
+    setActivePath,
+  } = useProjectStore()
+
+  // 🧠 Auto-set project path on prompt
+  useEffect(() => {
+    if (prompt && !projectPath) {
+      setProjectPath('/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui')
+    }
+  }, [prompt, projectPath, setProjectPath])
 
   useEffect(() => {
     return () => {
       cleanup()
     }
   }, [cleanup])
-
-  const handleFileClick = (file: OpenFile) => {
-    setOpenFiles((prev) => {
-      const exists = prev.find((f) => f.path === file.path)
-      if (exists) return prev
-      return [...prev, file]
-    })
-    setActivePath(file.path)
-  }
-
-  const handleClose = (path: string) => {
-    setOpenFiles((prev) => {
-      const index = prev.findIndex((f) => f.path === path)
-      const newFiles = prev.filter((f) => f.path !== path)
-  
-      
-      if (path === activePath) {
-        const next = newFiles[index] || newFiles[index - 1] || null
-        setActivePath(next?.path || null)
-      }
-  
-      return newFiles
-    })
-  }
 
   return (
     <div className="h-full bg-background flex flex-col">
@@ -54,15 +46,6 @@ export default function CodeView() {
             <p>No project workspace yet</p>
             <p>Start a chat with Genpod to create or open a project</p>
           </div>
-
-          <button
-            onClick={() =>
-              setProjectPath('/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui')
-            }
-            className="mt-6 px-4 py-2 bg-surface text-textPrimary border border-border rounded hover:bg-input transition-colors duration-200"
-          >
-            Simulate Project Start
-          </button>
         </div>
       )}
 
@@ -73,17 +56,17 @@ export default function CodeView() {
           <div className="w-1/4 border-r border-border bg-surface h-full overflow-auto">
             <FileTree
               projectPath={projectPath}
-              onFileClick={(file) => handleFileClick(file)}
+              onFileClick={addFile}
             />
           </div>
 
-          {/* Right: Tabs + Editor area */}
+          {/* Right: Tabs + Editor */}
           <div className="flex-1 flex flex-col bg-background">
             <FileTabs
               openFiles={openFiles}
               activePath={activePath}
-              onSelect={(path) => setActivePath(path)}
-              onClose={(path) => handleClose(path)}
+              onSelect={setActivePath}
+              onClose={closeFile}
             />
 
             <div className="flex-1">

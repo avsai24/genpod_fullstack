@@ -13,6 +13,9 @@ import ReactFlow, {
   MarkerType,
 } from 'react-flow-renderer'
 import { useAgentStreamStore } from '@/state/agentStreamStore'
+import LogPanel from '@/components/LeftPanel/LogPanel'
+
+
 
 const nodeTypes = {}
 const edgeTypes = {}
@@ -40,52 +43,75 @@ const NODE_COLORS = {
   }
 }
 
-const getNodeStyle = (type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success') => {
-  const base = {
-    padding: '25px',
-    borderRadius: '16px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    width: 280,
+const getNodeStyle = (id: string) => {
+  // Base style with improved vertical spacing
+  const style = {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+    borderRadius: '12px',
+    border: '3.5px solid #C2C2C2',
     fontSize: 16,
     textAlign: 'center' as const,
     transition: 'all 0.3s ease',
     backdropFilter: 'blur(12px)',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-    background: 'rgba(20, 42, 45, 0.7)',
+    background: '#1F1F1F',
+    color: '#E5E5E5',
+    width: 240,
+    minHeight: 120,
+    gap: '4px',  // Add consistent gap between flex items
   }
 
-  const colors = NODE_COLORS[type] || NODE_COLORS.reviewer
-  return {
-    ...base,
-    borderColor: colors.border,
-    color: colors.text,
+  if (id === 'supervisor') {
+    return {
+      ...style,
+      padding: '28px',
+      width: 500,
+      fontSize: 18,
+      border: '3.5px solid #C2C2C2',
+      gap: '8px',  // Slightly larger gap for supervisor
+    }
   }
+
+  if (id === 'prompt' || id === 'complete') {
+    return {
+      ...style,
+      width: 190,
+      padding: '16px',
+      minHeight: 100,  // Slightly smaller height for prompt/complete
+      gap: '2px',  // Tighter gap for prompt/complete
+    }
+  }
+
+  return style
 }
 
 // Update edge styles based on source node type
-const getEdgeStyle = (sourceType: string) => {
+const getEdgeStyle = (source: string, target: string) => {
   const baseStyle = {
-    strokeWidth: 1,
-    opacity: 0.3,
-    strokeDasharray: '4 4'
+    strokeWidth: 3,
+    opacity: 1,
+    strokeDasharray: '6 4'
   }
 
-  switch(sourceType) {
-    case 'supervisor':
-      return {
-        ...baseStyle,
-        stroke: '#00FF7F'  // Green for supervisor connections
-      }
-    case 'reviewer':
-      return {
-        ...baseStyle,
-        stroke: '#0095FF'  // Blue for reviewer connections
-      }
-    default:
-      return {
-        ...baseStyle,
-        stroke: '#FFD700'  // Gold for prompt connections
-      }
+  // Highlight primary workflow path in yellow
+  if (
+    (source === 'prompt' && target === 'supervisor') ||
+    (source === 'supervisor' && target === 'complete')
+  ) {
+    return {
+      ...baseStyle,
+      stroke: '#BFBFBF'  
+    }
+  }
+
+  // Default: red for agent delegation paths
+  return {
+    ...baseStyle,
+    stroke: '#BFBFBF'
   }
 }
 
@@ -291,7 +317,7 @@ function WorkflowCanvas() {
         },
         position,
         style: {
-          ...getNodeStyle(type),
+          ...getNodeStyle(id),
           animation: status === 'Running' ? 'blink 1.5s ease-in-out infinite' : 'none'
         },
         sourcePosition: Position.Right,
@@ -313,8 +339,9 @@ function WorkflowCanvas() {
         target: 'supervisor',
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('prompt'),
+        style: getEdgeStyle('prompt', 'supervisor'), // ✅ Fixed
       })
+      
     }
 
     // Always show workflow node
@@ -327,7 +354,7 @@ function WorkflowCanvas() {
         target: 'complete',
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('supervisor'),
+        style: getEdgeStyle('supervisor', 'complete'), // ✅ Fixed
       })
     }
 
@@ -342,7 +369,7 @@ function WorkflowCanvas() {
         target: agentId,
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('supervisor'),
+        style: getEdgeStyle('supervisor', agentId), // ✅ Fixed
       })
     })
 
@@ -405,7 +432,7 @@ function WorkflowCanvas() {
             maxZoom: 1.5
           }}
         >
-          <Background color="#333" gap={20} size={1} />
+          <Background color="#555" gap={20} size={1} />
           <Controls className="text-white" />
         </ReactFlow>
       ) : (
@@ -421,32 +448,40 @@ function WorkflowCanvas() {
         Reset Layout
       </button>
 
-      {showPromptModal && (
-        <div className="absolute top-4 right-4 w-96 bg-gray-900/70 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-lg p-4 z-10 animate-fadeIn text-white">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-sm font-semibold">Prompt</h2>
-            <button onClick={() => setShowPromptModal(false)} className="text-gray-400 hover:text-white">✕</button>
-          </div>
-          <pre className="text-xs max-h-72 overflow-y-auto whitespace-pre-wrap text-gray-300">{prompt}</pre>
-        </div>
-      )}
-
-      {selectedNodeId && selectedNodeId !== 'prompt' && (
-        <div className="absolute top-4 right-4 w-96 bg-gray-900/70 backdrop-blur-md border border-gray-700/50 rounded-lg shadow-lg p-4 z-10 animate-fadeIn text-white">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-sm font-semibold">Logs: {selectedNodeId}</h2>
-            <button onClick={() => setSelectedNodeId(null)} className="text-gray-400 hover:text-white">✕</button>
-          </div>
-          <div className="max-h-72 overflow-y-auto text-xs space-y-1">
-            {nodeLogs.length ? nodeLogs.map((log, idx) => (
-              <div key={idx}>
-                <span className="text-gray-500 mr-2">{log.timestamp}</span>
-                <span className="text-gray-300">{log.message}</span>
-              </div>
-            )) : <p className="italic text-gray-600">No logs found.</p>}
-          </div>
-        </div>
-      )}
+      {selectedNodeId && (
+      <LogPanel
+      title={
+        selectedNodeId === 'prompt'
+          ? 'Prompt'
+          : selectedNodeId === 'complete'
+            ? 'Workflow Status'
+            : `Logs: ${selectedNodeId}`
+      }
+      content={
+        selectedNodeId === 'prompt'
+          ? [prompt || 'No prompt entered.']
+          : selectedNodeId === 'complete'
+          ? (() => {
+              const agentStats = Object.keys(workflow?.agents || {})
+                .filter(name => name !== 'supervisor')
+                .map(agentId => {
+                  const agentLogs = logs.filter(log => log.agent_name.toLowerCase() === agentId.toLowerCase())
+                  const totalTasks = agentLogs.filter(log => log.message.includes('working on:')).length
+                  const completedTasks = agentLogs.filter(log => log.message.includes('completed:')).length
+                  return { total: totalTasks || 1, completed: completedTasks }
+                })
+      
+              const allComplete = agentStats.every(stat => stat.completed === stat.total && stat.total > 0)
+      
+              return allComplete
+                ? ['Workflow completed.', 'All agents finished their tasks successfully.']
+                : ['Workflow is still in progress.']
+            })()
+          : nodeLogs.map(log => `${log.timestamp} - ${log.message}`)
+      }
+      onClose={() => setSelectedNodeId(null)}
+    />
+    )}
 
       <style jsx global>{`
         @keyframes pulse {
@@ -488,12 +523,10 @@ function WorkflowCanvas() {
         }
         @keyframes blink {
           0%, 100% {
-            opacity: 1;
-            box-shadow: 0 0 20px currentColor;
+            box-shadow: 0 0 10px #F9995E;
           }
           50% {
-            opacity: 0.7;
-            box-shadow: 0 0 30px currentColor;
+            box-shadow: 0 0 20px #F9995E;
           }
         }
       `}</style>
