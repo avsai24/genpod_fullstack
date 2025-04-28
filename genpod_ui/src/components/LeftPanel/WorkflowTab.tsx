@@ -43,9 +43,8 @@ const NODE_COLORS = {
   }
 }
 
-const getNodeStyle = (id: string) => {
-  // Base style with improved vertical spacing
-  const style = {
+const getNodeStyle = (id: string, status: string) => {
+  let style = {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
@@ -62,28 +61,38 @@ const getNodeStyle = (id: string) => {
     color: '#E5E5E5',
     width: 240,
     minHeight: 120,
-    gap: '4px',  // Add consistent gap between flex items
+    gap: '4px',
   }
 
   if (id === 'supervisor') {
-    return {
+    style = {
       ...style,
       padding: '28px',
       width: 500,
       fontSize: 18,
-      border: '3.5px solid #C2C2C2',
-      gap: '8px',  // Slightly larger gap for supervisor
+      gap: '8px',
     }
   }
 
   if (id === 'prompt' || id === 'complete') {
-    return {
+    style = {
       ...style,
       width: 190,
       padding: '16px',
-      minHeight: 100,  // Slightly smaller height for prompt/complete
-      gap: '2px',  // Tighter gap for prompt/complete
+      minHeight: 100,
+      gap: '2px',
     }
+  }
+
+  if (id === 'prompt') {
+    style.color = '#22C55E'
+    style.border = '3.5px solid #22C55E'
+  } else if (status === 'Running') {
+    style.color = '#F9995E'
+    style.border = '3.5px solid #F9995E'
+  } else if (status === 'Complete') {
+    style.color = '#22C55E'
+    style.border = '3.5px solid #22C55E'
   }
 
   return style
@@ -299,25 +308,24 @@ function WorkflowCanvas() {
 
   const { flowNodes, flowEdges } = useMemo(() => {
     if (!workflow) return { flowNodes: [], flowEdges: [] }
-
+  
     const nodes: Node[] = []
     const edges: Edge[] = []
     const defaultPositions = getDefaultPositions()
-
+  
     // Helper function for node creation
-    const addNode = (id: string, type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success', label: React.ReactNode) => {
+    const addNode = (id: string, type: 'prompt' | 'supervisor' | 'reviewer' | 'workflow_success', label: React.ReactNode, status: string) => {
       const position = nodePositions[id] || defaultPositions[id]
-      const status = getNodeLabel(id).props.children[1].props.children
-      
+  
       nodes.push({
         id,
-        data: { 
+        data: {
           label,
           status
         },
         position,
         style: {
-          ...getNodeStyle(id),
+          ...getNodeStyle(id, status),
           animation: status === 'Running' ? 'blink 1.5s ease-in-out infinite' : 'none'
         },
         sourcePosition: Position.Right,
@@ -325,28 +333,36 @@ function WorkflowCanvas() {
         draggable: true
       })
     }
-
+  
     // Add main workflow nodes
-    addNode('prompt', 'prompt', getNodeLabel('prompt'))
-    
+    {
+      const label = getNodeLabel('prompt')
+      const status = label.props.children[1].props.children
+      addNode('prompt', 'prompt', label, status)
+    }
+  
     if (workflow.agents['supervisor']) {
-      const supervisorAgent = workflow.agents['supervisor']
-      addNode('supervisor', 'supervisor', getNodeLabel('supervisor'))
-      
+      const label = getNodeLabel('supervisor')
+      const status = label.props.children[1].props.children
+      addNode('supervisor', 'supervisor', label, status)
+  
       edges.push({
         id: 'e-prompt-supervisor',
         source: 'prompt',
         target: 'supervisor',
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('prompt', 'supervisor'), // ✅ Fixed
+        style: getEdgeStyle('prompt', 'supervisor'),
       })
-      
     }
-
-    // Always show workflow node
-    addNode('complete', 'workflow_success', getNodeLabel('complete'))
-    
+  
+    // Always show workflow node (completion node)
+    {
+      const label = getNodeLabel('complete')
+      const status = label.props.children[1].props.children
+      addNode('complete', 'workflow_success', label, status)
+    }
+  
     if (workflow.agents['supervisor']) {
       edges.push({
         id: 'e-supervisor-complete',
@@ -354,28 +370,32 @@ function WorkflowCanvas() {
         target: 'complete',
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('supervisor', 'complete'), // ✅ Fixed
+        style: getEdgeStyle('supervisor', 'complete'),
       })
     }
-
-    // Add agent nodes
+  
+    // Add agent nodes (coder, tester, reviewer etc)
     const otherAgents = Object.entries(workflow.agents).filter(([name]) => name !== 'supervisor')
     otherAgents.forEach(([agentId, agentData]) => {
-      addNode(agentId, 'reviewer', getNodeLabel(agentId))
-      
+      const label = getNodeLabel(agentId)
+      const status = label.props.children[1].props.children
+      addNode(agentId, 'reviewer', label, status)
+  
       edges.push({
         id: `e-supervisor-${agentId}`,
         source: 'supervisor',
         target: agentId,
         type: 'smoothstep',
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: getEdgeStyle('supervisor', agentId), // ✅ Fixed
+        style: getEdgeStyle('supervisor', agentId),
       })
     })
-
+  
     return { flowNodes: nodes, flowEdges: edges }
   }, [workflow, nodePositions, getDefaultPositions])
-
+  
+  
+  
   useEffect(() => {
     if (flowNodes.length > 0 || flowEdges.length > 0) {
       setNodes(flowNodes)
