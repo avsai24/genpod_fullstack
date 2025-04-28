@@ -229,12 +229,21 @@ export default function ChatTab() {
                 </button>
               </div>
               <button
-                onClick={handleSend}
-                className="rounded-full bg-white p-2 hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 transform transition-all duration-150 text-[#1F2937] shadow-sm hover:shadow-md active:shadow"
-                title="Send"
-              >
-                <Send size={18} />
-              </button>
+  onClick={handleSend}
+  disabled={isStreaming}
+  className={`rounded-full p-2 transform transition-all duration-150 shadow-sm ${
+    isStreaming
+      ? 'bg-white cursor-not-allowed'
+      : 'bg-white hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 hover:shadow-md active:shadow text-[#1F2937]'
+  }`}
+  title={isStreaming ? "Genpod is thinking..." : "Send"}
+>
+  {isStreaming ? (
+    <div className="w-4 h-4 border-[3px] border-[#1F2937] border-t-transparent rounded-full animate-slow-spin" />
+  ) : (
+    <Send size={18} className="text-[#1F2937]" />
+  )}
+</button>
             </div>
           </div>
         </div>
