@@ -8,12 +8,16 @@ import 'highlight.js/styles/atom-one-dark.css'
 import { Plus, Paperclip, Mic, Send } from 'lucide-react'
 import { useAgentStreamStore } from '@/state/agentStreamStore'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useSession } from 'next-auth/react'
+import { startLogStream } from '@/state/logStream'
 
 export default function ChatTab() {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { prompt, answer, isStreaming, startAgentStream, logs } = useAgentStreamStore()
   const [steps, setSteps] = useState<string[]>([])
+  const { data: session } = useSession()
+
 
   console.log('🔄 ChatTab render:', {
     hasPrompt: !!prompt,
@@ -51,10 +55,21 @@ export default function ChatTab() {
     }
   }, [isStreaming, logs])
 
+  
   const handleSend = () => {
-    if (!input.trim()) return
-    console.log('📤 Sending message:', input.trim())
-    startAgentStream(input.trim())
+    if (!input.trim() || !session?.user?.email) return
+
+    const userPrompt = input.trim()
+    const userEmail = session.user.email
+
+    console.log('📤 Sending message:', userPrompt)
+
+    // ✅ Start chat response streaming
+    startAgentStream(userPrompt)
+
+    // ✅ Start agent logs + events streaming
+    startLogStream(userPrompt, userEmail)
+
     setInput('')
     setSteps([])
   }

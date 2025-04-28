@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import ConfigurationTab from './Configuration/ConfigurationTab'
-import SettingsForm from './Configuration/SettingsForm'
+import ConfigurationTab from './ConfigurationTab'
+import SettingsForm from './SettingsForm'
 
 type ConfigData = {
   max_users: string

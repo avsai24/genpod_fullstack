@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import ChatTab from './LeftPanel/ChatTab'
-import MetricsTab from './LeftPanel/MetricsTab'
-import LogsTab from './LeftPanel/LogsTab'
-import WorkflowTab from './LeftPanel/WorkflowTab'
+import ChatTab from './ChatTab/ChatTab'
+import MetricsTab from './MetricsTab/MetricsTab'
+import LogsTab from './LogsTab/LogsTab'
+import WorkflowTab from './WorkflowTab/WorkflowTab'
 
 import {
   MessageSquare,

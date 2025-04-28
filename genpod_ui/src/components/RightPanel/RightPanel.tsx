@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import CodeView from './RightPanel/CodeView'
-import PreviewView from './RightPanel/PreviewView'
-import ConfigureTab from './RightPanel/ConfigureTab'
-import InsightsTab from './RightPanel/InsightsTab'
+import CodeView from './CodeTab/CodeView'
+import PreviewView from './PreviewTab/PreviewView'
+import ConfigureTab from './ConfigureTab/ConfigureTab'
+import InsightsTab from './InsightsTab/InsightsTab'
 import UserMenu from '@/components/auth/UserMenu'
 import {
   Code2,

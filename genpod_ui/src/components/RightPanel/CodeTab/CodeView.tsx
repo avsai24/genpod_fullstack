@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import FileTree from './FileTree'
 import FileTabs from './FileTabs'
 import MonacoViewer from './MonacoViewer'
@@ -21,7 +21,11 @@ export default function CodeView() {
     setActivePath,
   } = useProjectStore()
 
-  // 🧠 Auto-set project path on prompt
+  const [sidebarWidth, setSidebarWidth] = useState(300) // Default sidebar width
+  const isDragging = useRef(false)
+  const startX = useRef(0)
+  const startWidth = useRef(0)
+
   useEffect(() => {
     if (prompt && !projectPath) {
       setProjectPath('/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_ui')
@@ -33,6 +37,33 @@ export default function CodeView() {
       cleanup()
     }
   }, [cleanup])
+
+  const startDragging = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    isDragging.current = true
+    startX.current = e.clientX
+    startWidth.current = sidebarWidth
+  }
+
+  const stopDragging = () => {
+    isDragging.current = false
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging.current) return
+    const delta = e.clientX - startX.current
+    const newWidth = startWidth.current + delta
+    setSidebarWidth(Math.min(Math.max(newWidth, 180), 600)) // Clamp between 180px and 600px
+  }
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', stopDragging)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', stopDragging)
+    }
+  }, [])
 
   return (
     <div className="h-full bg-background flex flex-col">
@@ -51,14 +82,28 @@ export default function CodeView() {
 
       {/* Active project UI */}
       {projectPath && (
-        <div className="flex flex-1 h-full">
+        <div className="flex flex-1 h-full overflow-hidden">
           {/* Left: File Tree */}
-          <div className="w-1/4 border-r border-border bg-surface h-full overflow-auto">
+          <div
+            style={{
+              width: `${sidebarWidth}px`,
+              minWidth: '180px',
+              maxWidth: '600px',
+              transition: isDragging.current ? 'none' : 'width 0.2s ease-out',
+            }}
+            className="h-full border-r border-border bg-surface overflow-auto"
+          >
             <FileTree
               projectPath={projectPath}
               onFileClick={addFile}
             />
           </div>
+
+          {/* Divider */}
+          <div
+            onMouseDown={startDragging}
+            className="w-1 bg-border hover:bg-primary cursor-col-resize transition-colors"
+          />
 
           {/* Right: Tabs + Editor */}
           <div className="flex-1 flex flex-col bg-background">
@@ -68,7 +113,6 @@ export default function CodeView() {
               onSelect={setActivePath}
               onClose={closeFile}
             />
-
             <div className="flex-1">
               {activePath ? (
                 <MonacoViewer filePath={activePath} />

@@ -29,3 +29,4 @@ const config: Config = {
   ],
   plugins: [],
 }
+export default config  // ✅ <-- Add this line
