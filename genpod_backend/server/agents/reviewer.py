@@ -1,5 +1,3 @@
-# genpod_backend/server/agents/reviewer.py
-
 from .base import AgentBase
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -27,14 +25,12 @@ class ReviewerAgent(AgentBase):
             """
         )
 
-    def run(self, task: str, context: dict) -> str:
+    def run(self, task: str, context: dict):
         try:
             prompt_value = self.prompt.invoke({"task": task})
-            response = self.model.invoke(prompt_value)
-            result = response.content.strip()
-            context.setdefault("Coder", []).append(result)
-            return result
+            response_stream = self.model.stream(prompt_value)
+            for chunk in response_stream:
+                if chunk.content:
+                    yield chunk.content
         except Exception as e:
-            error_msg = f"❌ CoderAgent failed: {str(e)}"
-            context.setdefault("Coder", []).append(error_msg)
-            return error_msg
+            yield f"❌ ReviewerAgent failed: {str(e)}"

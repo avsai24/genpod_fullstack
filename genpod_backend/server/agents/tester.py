@@ -1,4 +1,4 @@
-# genpod_backend/server/agents/tester.py
+# server/agents/tester.py
 
 from .base import AgentBase
 import os
@@ -11,29 +11,27 @@ class TesterAgent(AgentBase):
         self.model = ChatGoogleGenerativeAI(
             model="gemini-2.0-flash",
             google_api_key=os.getenv("GEMINI_API_KEY"),
-            temperature=0.4
+            temperature=0.4,
         )
 
         self.prompt = PromptTemplate.from_template(
             """
-            You are a QA engineer. Your job is to write Python test cases using `pytest` or `unittest`
-            for the following task:
+            You are a senior QA engineer.
 
             Task:
             {task}
 
-            Only return Python test code. No explanations.
+            Generate detailed and well-structured test cases or test code as required. 
+            Respond only with a markdown ```python code block```, no extra explanation.
             """
         )
 
-    def run(self, task: str, context: dict) -> str:
+    def run(self, task: str, context: dict):
         try:
             prompt_value = self.prompt.invoke({"task": task})
-            response = self.model.invoke(prompt_value)
-            result = response.content.strip()
-            context.setdefault("Coder", []).append(result)
-            return result
+            response_stream = self.model.stream(prompt_value)
+            for chunk in response_stream:
+                if chunk.content:
+                    yield chunk.content
         except Exception as e:
-            error_msg = f"❌ CoderAgent failed: {str(e)}"
-            context.setdefault("Coder", []).append(error_msg)
-            return error_msg
+            yield f"❌ TesterAgent failed: {str(e)}"

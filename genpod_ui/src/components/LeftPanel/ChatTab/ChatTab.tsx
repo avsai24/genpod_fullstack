@@ -14,10 +14,13 @@ import { startLogStream } from '@/state/logStream'
 export default function ChatTab() {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { prompt, answer, isStreaming, startAgentStream, logs } = useAgentStreamStore()
-  const [steps, setSteps] = useState<string[]>([])
+  const { prompt, answer, answerChunks, isStreaming, startAgentStream, logs, workflow } = useAgentStreamStore()
   const { data: session } = useSession()
 
+  // 🆕 Derive steps directly from workflow
+  const steps = workflow
+    ? Object.values(workflow.agents).map((agent) => `[${agent.agent}] ${agent.task}`)
+    : []
 
   console.log('🔄 ChatTab render:', {
     hasPrompt: !!prompt,
@@ -31,31 +34,6 @@ export default function ChatTab() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [prompt, answer, isStreaming, logs])
 
-  // Parse steps from the first system log when streaming starts
-  useEffect(() => {
-    if (isStreaming && logs && logs.length > 0) {
-      const systemLog = logs.find(log => 
-        log.agent_name === 'System' && log.message.includes('"subtasks"')
-      )
-      
-      if (systemLog) {
-        try {
-          const tasksMatch = systemLog.message.match(/\{"subtasks":\s*(\[.*?\])}/)
-          if (tasksMatch) {
-            const tasks = JSON.parse(tasksMatch[1])
-            const parsedSteps = tasks.map((task: { agent: string; task: string }) => 
-              `[${task.agent}] ${task.task}`
-            )
-            setSteps(parsedSteps)
-          }
-        } catch (err) {
-          console.error('Failed to parse steps:', err)
-        }
-      }
-    }
-  }, [isStreaming, logs])
-
-  
   const handleSend = () => {
     if (!input.trim() || !session?.user?.email) return
 
@@ -64,14 +42,10 @@ export default function ChatTab() {
 
     console.log('📤 Sending message:', userPrompt)
 
-    // ✅ Start chat response streaming
     startAgentStream(userPrompt)
-
-    // ✅ Start agent logs + events streaming
     startLogStream(userPrompt, userEmail)
 
     setInput('')
-    setSteps([])
   }
 
   useEffect(() => {
@@ -85,7 +59,6 @@ export default function ChatTab() {
 
   return (
     <div className="flex flex-col h-full bg-surface">
-      {/* Message list */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
         {prompt && (
           <div className="flex justify-end">
@@ -157,11 +130,15 @@ export default function ChatTab() {
           </motion.div>
         )}
 
-        {answer && (
-          <div className="w-full text-textPrimary leading-relaxed px-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-              {answer}
-            </ReactMarkdown>
+        {answerChunks.length > 0 && (
+          <div className="w-full text-textPrimary leading-relaxed px-1 whitespace-pre-wrap break-words">
+            <ReactMarkdown
+        key={answerChunks.length}
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+      >
+        {answerChunks.join('')}
+      </ReactMarkdown>
           </div>
         )}
 
@@ -229,26 +206,27 @@ export default function ChatTab() {
                 </button>
               </div>
               <button
-  onClick={handleSend}
-  disabled={isStreaming}
-  className={`rounded-full p-2 transform transition-all duration-150 shadow-sm ${
-    isStreaming
-      ? 'bg-white cursor-not-allowed'
-      : 'bg-white hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 hover:shadow-md active:shadow text-[#1F2937]'
-  }`}
-  title={isStreaming ? "Genpod is thinking..." : "Send"}
->
-  {isStreaming ? (
-    <div className="w-4 h-4 border-[3px] border-[#1F2937] border-t-transparent rounded-full animate-slow-spin" />
-  ) : (
-    <Send size={18} className="text-[#1F2937]" />
-  )}
-</button>
+                onClick={handleSend}
+                disabled={isStreaming}
+                className={`rounded-full p-2 transform transition-all duration-150 shadow-sm ${
+                  isStreaming
+                    ? 'bg-white cursor-not-allowed'
+                    : 'bg-white hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 hover:shadow-md active:shadow text-[#1F2937]'
+                }`}
+                title={isStreaming ? "Genpod is thinking..." : "Send"}
+              >
+                {isStreaming ? (
+                  <div className="w-4 h-4 border-[3px] border-[#1F2937] border-t-transparent rounded-full animate-slow-spin" />
+                ) : (
+                  <Send size={18} className="text-[#1F2937]" />
+                )}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Global scrollbar styles */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;

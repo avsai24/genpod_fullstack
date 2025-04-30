@@ -6,11 +6,15 @@ import json
 import random
 import sys
 import os
+import asyncio
+import re
+import concurrent.futures
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import server.agent_pb2 as agent_pb2
 import server.agent_pb2_grpc as agent_pb2_grpc
+from server.agents.supervisor import SupervisorAgent
 import google.generativeai as genai
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -277,7 +281,7 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 )
                 time.sleep(2)
 
-    def RunAgentWorkflow(self, request, context):
+    async def RunAgentWorkflow(self, request, context):
         print(f"[Workflow] User {request.user_id} requested prompt: {request.prompt}")
 
         def send_log(agent_name, message):
@@ -302,38 +306,17 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         yield send_log("Supervisor", f"Received prompt: {request.prompt}")
         time.sleep(1)
 
-        # Step 2: Ask Gemini to generate subtasks
+        # Step 2: Generate subtasks
         try:
-            breakdown_prompt = f"""
-                You are a Supervisor agent. Your job is to break down the following user task into subtasks and assign them to agents (like Coder, Tester, Reviewer).
+            supervisor = SupervisorAgent()
+            subtasks_raw = await supervisor.generate_subtasks(request.prompt)
+            match = re.search(r"```json\s*(.*?)\s*```", subtasks_raw, re.DOTALL)
+            if match:
+                subtasks_json = match.group(1)
+            else:
+                raise ValueError("❌ No valid JSON block found in Gemini response")
 
-                IMPORTANT:
-                - Output ONLY valid JSON. Do NOT add markdown, commentary, or explanation.
-                - Follow this JSON format exactly:
-                [
-                {{ "agent": "Coder", "task": "Implement feature X" }},
-                {{ "agent": "Tester", "task": "Write tests for feature X" }}
-                ]
-
-                Now, break down this task:
-                "{request.prompt}"
-            """
-
-            print("[Gemini] Sending breakdown prompt...")
-            gemini_response = model.generate_content(breakdown_prompt)
-            print("[Gemini] Raw response:", gemini_response.text)
-
-            raw_text = gemini_response.text.strip()
-
-            # ✅ Clean out markdown formatting
-            if raw_text.startswith("```json"):
-                raw_text = raw_text.lstrip("```json").rstrip("```").strip()
-            elif raw_text.startswith("```"):
-                raw_text = raw_text.lstrip("```").rstrip("```").strip()
-
-            # ✅ Now parse
-            subtasks = json.loads(raw_text)
-
+            subtasks = json.loads(subtasks_json)
             yield send_log("System", json.dumps({ "subtasks": subtasks }))
         except Exception as e:
             yield send_log("Supervisor", f"Error generating subtasks: {str(e)}")
@@ -342,41 +325,52 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         yield send_event("Supervisor", "FINISHED")
         time.sleep(1)
 
-        # Step 3: Each agent performs their task
+        # Step 3: Execute agents
+        from server.agent_engine import AGENT_REGISTRY
+
         for task in subtasks:
-            agent = task["agent"]
-            message = task["task"]
+            agent_name = task["agent"]
+            agent_task = task["task"]
 
-            yield send_event(agent, "STARTED")
-            yield send_log(agent, f"{agent} is working on: {message}")
-            time.sleep(3)
-            yield send_log(agent, f"{agent} completed: {message}")
-            yield send_event(agent, "FINISHED")
+            yield send_event(agent_name, "STARTED")
+            yield send_log(agent_name, f"Working on task: {agent_task}")
 
-        # Step 4: Final answer
-        time.sleep(1.5)
-        final_output = f"Genpod completed your task successfully!!"
+            agent = AGENT_REGISTRY.get(agent_name)
+            if agent:
+                try:
+                    for chunk in agent.run(agent_task, context={}):
+                        if chunk.strip():
+                            yield agent_pb2.AgentUpdate(
+                                answer=agent_pb2.FinalAnswer(content=chunk)
+                            )
+                    yield send_log(agent_name, f"Completed task: {agent_task}")
+                except Exception as e:
+                    yield send_log(agent_name, f"❌ Agent error: {str(e)}")
+            else:
+                yield send_log(agent_name, f"❌ Agent {agent_name} not found")
 
+            yield send_event(agent_name, "FINISHED")
+            time.sleep(1)
+
+        # ✅ Step 4: Mark complete
+        final_output = "✅ All agents completed their tasks successfully!"
+        yield send_log("complete", "Completed task: all agents finished successfully.")
+        yield send_event("complete", "FINISHED")
         yield agent_pb2.AgentUpdate(
             answer=agent_pb2.FinalAnswer(content=final_output)
         )
-
         print("[Workflow] Finished workflow and sent final answer.")
 
+        
 # ----- Serve on 50052 -----
-def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+async def serve():
+    server = grpc.aio.server()
     agent_pb2_grpc.add_ChatServiceServicer_to_server(ChatService(), server)
     agent_pb2_grpc.add_AgentServiceServicer_to_server(AgentService(), server)
     server.add_insecure_port('[::]:50052')
-    server.start()
-    print("Unified gRPC server running at http://localhost:50052")
-    try:
-        while True:
-            time.sleep(86400)
-    except KeyboardInterrupt:
-        print("Server Stopped")
-        server.stop(0)
+    await server.start()
+    print("✅ Unified gRPC server running at http://localhost:50052")
+    await server.wait_for_termination()
 
 if __name__ == "__main__":
-    serve()
+    asyncio.run(serve())
