@@ -170,9 +170,11 @@ function WorkflowCanvas() {
       return completed === total ? 'Complete' : 'idle'
     }
 
-    const callsDisplay = id !== 'prompt' && id !== 'complete'
-      ? getAgentCalls(id)
-      : null
+    const callsDisplay = id === 'supervisor'
+      ? getSupervisorCalls()
+      : id !== 'prompt' && id !== 'complete'
+        ? getAgentCalls(id)
+        : null
 
     return (
       <div className="flex flex-col items-center">
