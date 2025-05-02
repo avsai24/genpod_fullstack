@@ -15,6 +15,7 @@
     "@headlessui/react": "^2.2.1",
     "@monaco-editor/react": "^4.7.0",
     "@react-spring/web": "^9.7.5",
+    "@xyflow/react": "^12.6.0",
     "chart.js": "^4.4.9",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.6.5",

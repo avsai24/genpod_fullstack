@@ -1,21 +1,20 @@
 'use client'
 
 import React, { useEffect, useMemo, useCallback, useState, useRef } from 'react'
-import ReactFlow, {
-  Background,
-  Controls,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  Node,
-  Edge,
-  Position,
-  MarkerType,
-} from 'react-flow-renderer'
+import { ReactFlow, 
+    Background, 
+    Controls, 
+    ReactFlowProvider, 
+    useNodesState, 
+    useEdgesState, 
+    Position, 
+    MarkerType, 
+    Node, Edge, Handle, Position as HandlePosition, NodeProps } from '@xyflow/react'
+
+import '@xyflow/react/dist/style.css'
 import { useAgentStreamStore } from '@/state/agentStreamStore'
 import LogPanel from '@/components/LeftPanel/WorkflowTab/LogPanel'
 
-const nodeTypes = {}
 const edgeTypes = {}
 
 const getNodeStyle = (id, status) => {
@@ -80,49 +79,98 @@ const getEdgeStyle = () => ({
   stroke: '#BFBFBF'
 })
 
+// Inline custom SupervisorNode for dynamic bottom handles
+const SupervisorNode = ({ data }: NodeProps) => {
+  const assignedAgents: string[] = Array.isArray(data.assignedAgents) ? data.assignedAgents : []
+  const isRunning = data.status === 'Running'
+  const isComplete = data.status === 'Complete'
+
+  const borderColor = isRunning ? '#F9995E' : isComplete ? '#22C55E' : '#C2C2C2'
+  const textColor = isRunning ? '#F9995E' : isComplete ? '#22C55E' : '#E5E5E5'
+  const animationClass = isRunning ? 'pulse-glow' : ''
+
+  return (
+    <div
+      className={`rounded-xl px-6 py-4 shadow-md text-center relative w-[500px] ${animationClass}`}
+      style={{
+        background: '#1F1F1F',
+        border: `3.5px solid ${borderColor}`,
+        color: textColor,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 120,
+        gap: '8px',
+        fontSize: 18
+      }}
+    >
+      <div className="text-2xl font-semibold mb-2">{data.label}</div>
+      <div className="text-sm mb-4">{data.status}</div>
+
+      <Handle type="target" position={HandlePosition.Left} />
+      <Handle type="source" position={HandlePosition.Right} />
+
+      {(assignedAgents.length === 0 || assignedAgents.length === 1) && (
+        <Handle type="source" position={HandlePosition.Bottom} id="bottom-0" style={{ left: '50%' }} />
+      )}
+      {assignedAgents.length > 1 &&
+        assignedAgents.map((_, idx) => (
+          <Handle
+            key={`bottom-${idx}`}
+            type="source"
+            position={HandlePosition.Bottom}
+            id={`bottom-${idx}`}
+            style={{ left: `${((idx + 1) * 100) / (assignedAgents.length + 1)}%` }}
+          />
+        ))}
+    </div>
+  )
+}
+
+const nodeTypes = { supervisor: SupervisorNode }
+
 function WorkflowCanvas() {
   const { prompt, workflow, logs, nodePositions, updateNodePosition } = useAgentStreamStore()
   const containerRef = useRef(null)
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([])
   const [selectedNodeId, setSelectedNodeId] = useState(null)
 
+
+  
   const getDefaultPositions = useCallback(() => {
     const containerWidth = containerRef.current?.offsetWidth || 1200
     const BASE_Y = 150
-    const AGENTS_Y = BASE_Y + 200
-    const MIN_SPACING = 200
-    const availableWidth = containerWidth - 200
-    const mainNodesCount = 3
-    const agentsCount = Object.keys(workflow?.agents || {}).filter(name => name !== 'supervisor').length
-    const maxNodesInRow = Math.max(mainNodesCount, agentsCount)
-    const NODE_SPACING = Math.max(MIN_SPACING, Math.min(300, (availableWidth - 250) / (maxNodesInRow - 1)))
-    const START_X = (containerWidth - ((maxNodesInRow - 1) * NODE_SPACING + 250)) / 2
-
-    const positions = {
-      prompt: { x: START_X, y: BASE_Y },
-      supervisor: { x: START_X + NODE_SPACING, y: BASE_Y },
-      complete: { x: START_X + (NODE_SPACING * 2), y: BASE_Y }
+    const SUPERVISOR_WIDTH = 500
+    const AGENT_WIDTH = 120
+    const VERTICAL_SPACING = 200
+  
+    // Step 1: define base nodes
+    const positions: Record<string, { x: number, y: number }> = {
+      prompt: { x: containerWidth * 0.1, y: BASE_Y },
+      supervisor: { x: containerWidth * 0.35, y: BASE_Y },
+      complete: { x: containerWidth * 0.75, y: BASE_Y },
     }
-
+  
+    // Step 2: define other agents (excluding supervisor)
     const otherAgents = Object.keys(workflow?.agents || {}).filter(name => name !== 'supervisor')
-    if (otherAgents.length > 0) {
-      const agentRowWidth = (otherAgents.length - 1) * NODE_SPACING
-      const agentStartX = (containerWidth - agentRowWidth) / 2
-      otherAgents.forEach((agentId, idx) => {
-        positions[agentId] = {
-          x: agentStartX + (NODE_SPACING * idx),
-          y: AGENTS_Y
-        }
-      })
-    }
-
+    const supervisorPos = positions['supervisor']
+  
+    // Step 3: assign each agent a % left from supervisor
+    otherAgents.forEach((agentId, idx) => {
+      const percent = [0.25, 0.5, 0.75][idx] || 0.5
+      const x = supervisorPos.x + (SUPERVISOR_WIDTH * percent) - (AGENT_WIDTH / 2)
+      const y = supervisorPos.y + VERTICAL_SPACING
+      positions[agentId] = { x, y }
+    })
+  
     return positions
   }, [workflow])
 
-  const getNodeLabel = useCallback((id) => {
+  const getNodeLabel = useCallback((id: string) => {
     const displayName = id === 'complete' ? 'Workflow' : id.charAt(0).toUpperCase() + id.slice(1)
-    const getAgentCalls = (agentId) => {
+    const getAgentCalls = (agentId: string) => {
       const agentLogs = logs.filter(log => log.agent_name.toLowerCase() === agentId.toLowerCase())
       const total = agentLogs.filter(log => log.message.toLowerCase().includes('working on task')).length
       const completed = agentLogs.filter(log => log.message.toLowerCase().includes('completed task')).length
@@ -193,23 +241,58 @@ function WorkflowCanvas() {
   const { flowNodes, flowEdges } = useMemo(() => {
     if (!workflow || !prompt) return { flowNodes: [], flowEdges: [] }
 
-    const nodes = []
-    const edges = []
+    const nodes: Node[] = []
+    const edges: Edge[] = []
     const defaultPositions = getDefaultPositions()
     const baseSuffix = prompt.replace(/\\s+/g, '-').toLowerCase().slice(0, 20) || 'default'
     let edgeCounter = 0
 
-    const addNode = (id, type, label, status) => {
+    const addNode = (
+      id: string,
+      type: string,
+      label: React.ReactNode,
+      status: string,
+      assignedAgents: string[] = []
+    ) => {
       const position = nodePositions[id] || defaultPositions[id]
-      nodes.push({
+      let sourcePosition = Position.Right
+      let targetPosition = Position.Left
+      let nodeType = undefined
+      let nodeData: any = { label, status }
+      if (id === 'supervisor') {
+        nodeType = 'supervisor'
+        nodeData = { label, status, assignedAgents }
+        // Do NOT pass style for custom node
+      }
+      if (id === 'prompt') {
+        sourcePosition = Position.Right
+        targetPosition = Position.Left
+      }
+      if (id === 'complete') {
+        sourcePosition = Position.Right
+        targetPosition = Position.Left
+      }
+      if (id !== 'prompt' && id !== 'supervisor' && id !== 'complete') {
+        sourcePosition = Position.Right
+        targetPosition = Position.Top
+      }
+      const node: any = {
         id,
-        data: { label, status },
+        data: nodeData,
         position,
-        style: { ...getNodeStyle(id, status), animation: status === 'Running' ? 'blink 1.5s ease-in-out infinite' : 'none' },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-        draggable: true
-      })
+        draggable: true,
+      }
+      if (nodeType) node.type = nodeType
+      if (!nodeType) {
+        node.style = {
+          ...getNodeStyle(id, status),
+          
+        }
+        node.className = status === 'Running' ? 'pulse-glow' : ''
+        node.sourcePosition = sourcePosition
+        node.targetPosition = targetPosition
+      }
+      nodes.push(node)
     }
 
     const labelPrompt = getNodeLabel('prompt')
@@ -219,22 +302,28 @@ function WorkflowCanvas() {
     if (workflow.agents.supervisor) {
       const labelSupervisor = getNodeLabel('supervisor')
       const statusSupervisor = labelSupervisor.props.children[1].props.children
-      addNode('supervisor', 'supervisor', labelSupervisor, statusSupervisor)
-
+      // Only pass agents (not supervisor or complete/workflow)
+      const assignedAgents = Object.keys(workflow.agents).filter(name => name !== 'supervisor' && name !== 'complete')
+      addNode('supervisor', 'supervisor', labelSupervisor, statusSupervisor, assignedAgents)
+      // prompt -> supervisor (right to left)
       edges.push({
         id: `e-prompt-supervisor-${baseSuffix}-${edgeCounter++}`,
         source: 'prompt',
         target: 'supervisor',
         type: 'smoothstep',
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
         markerEnd: { type: MarkerType.ArrowClosed },
         style: getEdgeStyle()
       })
-
+      // supervisor -> complete (right to left)
       edges.push({
         id: `e-supervisor-complete-${baseSuffix}-${edgeCounter++}`,
         source: 'supervisor',
         target: 'complete',
         type: 'smoothstep',
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
         markerEnd: { type: MarkerType.ArrowClosed },
         style: getEdgeStyle()
       })
@@ -244,21 +333,26 @@ function WorkflowCanvas() {
     const statusComplete = labelComplete.props.children[1].props.children
     addNode('complete', 'workflow_success', labelComplete, statusComplete)
 
-    Object.entries(workflow.agents)
-      .filter(([name]) => name !== 'supervisor')
-      .forEach(([agentId]) => {
-        const label = getNodeLabel(agentId)
-        const status = label.props.children[1].props.children
-        addNode(agentId, 'reviewer', label, status)
-        edges.push({
-          id: `e-supervisor-${agentId}-${baseSuffix}-${edgeCounter++}`,
-          source: 'supervisor',
-          target: agentId,
-          type: 'smoothstep',
-          markerEnd: { type: MarkerType.ArrowClosed },
-          style: getEdgeStyle()
-        })
+    // Supervisor -> agents (dynamic bottom division, with handle ids for multiple agents)
+    const agentEntries = Object.entries(workflow.agents).filter(([name]) => name !== 'supervisor' && name !== 'complete')
+    const agentCount = agentEntries.length
+    agentEntries.forEach(([agentId], idx) => {
+      const label = getNodeLabel(agentId)
+      const status = label.props.children[1].props.children
+      addNode(agentId, 'reviewer', label, status)
+      // Always use sourceHandle: bottom-0 for single agent, bottom-i for multiple
+      const handleId = agentCount === 1 ? 'bottom-0' : `bottom-${idx}`
+      edges.push({
+        id: `e-supervisor-${agentId}-${baseSuffix}-${edgeCounter++}`,
+        source: 'supervisor',
+        target: agentId,
+        type: 'smoothstep',
+        sourceHandle: handleId,
+        targetPosition: Position.Top,
+        markerEnd: { type: MarkerType.ArrowClosed },
+        style: getEdgeStyle()
       })
+    })
 
     return { flowNodes: nodes, flowEdges: edges }
   }, [workflow, prompt, nodePositions, getDefaultPositions, getNodeLabel])
@@ -270,35 +364,36 @@ function WorkflowCanvas() {
     }
   }, [flowNodes, flowEdges])
 
-  const onNodeClick = useCallback((_, node) => setSelectedNodeId(node.id), [])
-  const onNodeDragStop = useCallback((_, node) => updateNodePosition(node.id, node.position), [updateNodePosition])
+  const onNodeClick = useCallback((_: any, node: any) => setSelectedNodeId(node.id), [])
+  const onNodeDragStop = useCallback((_: any, node: any) => updateNodePosition(node.id, node.position), [updateNodePosition])
 
   return (
     <div ref={containerRef} className="relative w-full h-full bg-[#0a0a0a]">
       {prompt ? (
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={onNodeClick}
-          onNodeDragStop={onNodeDragStop}
-          fitView
-        />
+        nodes={nodes}
+        edges={edges}
+        edgeTypes={edgeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        onNodeDragStop={onNodeDragStop}
+        fitView
+        nodeTypes={nodeTypes}
+      >
+        <Background
+        variant="dots"
+        gap={20}
+        size={2}
+        color="#666"
+      />
+       <Controls className="custom-controls" />
+      </ReactFlow>
       ) : (
         <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
           No workflow yet. Start a prompt in the Chat tab.
         </div>
       )}
-
-      <button onClick={() => {
-        const defaults = getDefaultPositions()
-        setNodes(nodes => nodes.map(n => ({ ...n, position: nodePositions[n.id] || defaults[n.id] })))
-      }} className="absolute top-4 left-4 z-10 px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md border border-zinc-600/30 transition-colors duration-200">
-        Reset Layout
-      </button>
 
       {selectedNodeId && (
         <LogPanel

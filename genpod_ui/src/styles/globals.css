@@ -4,7 +4,7 @@
   --background: #0a0a0a;
   --surface: #1a1a1a;
   --input: #121212;
-  --text-primary: #e5e5e5;
+  --text-primary: #EDE6FF;
   --text-secondary: #a1a1aa;
   --border: #2a2a2a;
   --accent: #3b82f6;
@@ -159,4 +159,28 @@ p {
 
 .animate-slow-spin {
   animation: slow-spin 1.2s linear infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px #F9995E, 0 0 20px #F9995E;
+  }
+  50% {
+    box-shadow: 0 0 20px #F9995E, 0 0 30px #F9995E;
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+.custom-controls button {
+  background-color: #1a1a1a;   /* background */
+  color: #14b8a6;              /* icon color */
+  border: 1px solid #14b8a6;   /* border */
+}
+
+.custom-controls button:hover {
+  background-color: #0d9488;   /* hover background */
+  color: white;                /* hover icon */
 }
