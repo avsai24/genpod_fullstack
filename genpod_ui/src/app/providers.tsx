@@ -5,12 +5,18 @@ import AuthGuard from '../components/auth/AuthGuard'
 import SplitLayout from '@/components/layouts/SplitLayout'
 import LeftPanel from '@/components/LeftPanel/LeftPanel'
 import RightPanel from '@/components/RightPanel/RightPanel'
+import Sidebar from '@/components/layouts/Sidebar'
 
 export default function Providers() {
   return (
     <SessionProvider>
       <AuthGuard>
-        <SplitLayout left={<LeftPanel />} right={<RightPanel />} />
+        <div className="flex h-screen w-full">
+          <Sidebar />
+          <div className="flex-1">
+            <SplitLayout left={<LeftPanel />} right={<RightPanel />} />
+          </div>
+        </div>
       </AuthGuard>
     </SessionProvider>
   )

@@ -9,6 +9,7 @@ import {
   CreditCard,
   ChevronDown,
 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function UserMenu() {
   const { data: session } = useSession()
@@ -17,12 +18,26 @@ export default function UserMenu() {
 
   return (
     <Menu as="div" className="relative inline-block text-left">
-      {/* GENPOD Button */}
-      <Menu.Button className="flex items-center gap-2 px-3 py-1 rounded-md transition-all duration-200 ease-in-out
-                              bg-surface text-text-primary hover:bg-input border border-border">
-        <span className="text-sm font-semibold">GENPOD</span>
-        <ChevronDown size={16} />
-      </Menu.Button>
+      {/* GENPOD Button with Logo */}
+      <Menu.Button className="
+  relative inline-flex items-center gap-2 px-3 py-1 rounded-full
+  text-sm font-semibold text-white
+  border border-transparent transition-all duration-300 ease-in-out
+  bg-background z-10
+  before:absolute before:inset-0 before:rounded-full
+  before:bg-gradient-to-r before:from-[#F4724D] before:to-[#8B5CF6]
+  before:z-[-1] before:opacity-100
+">
+  <Image
+    src="/logo/logo.png"
+    alt="Capten Logo"
+    width={100}
+    height={32}
+    priority
+    className="h-auto w-auto"
+  />
+  <ChevronDown size={16} />
+</Menu.Button>
 
       {/* Dropdown Items */}
       <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md 

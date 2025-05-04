@@ -1,17 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --surface: #1a1a1a;
-  --input: #121212;
-  --text-primary: #EDE6FF;
-  --text-secondary: #a1a1aa;
-  --border: #2a2a2a;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #22c55e;
-  --warning: #eab308;
-  --error: #ef4444;
+  /* Base Backgrounds */
+  --background: #000918;        /* Main app background (e.g. body, full sections) */
+  --surface: #190833;           /* Surface background for cards, navs, modals */
+  --surface-hover: #913699;     /* Hover/active surface state */
+
+  /* Text Colors */
+  --text-primary: #FFFFFF;      /* Main heading text */
+  --text-secondary: #9659FF;    /* Body text or subtitles */
+
+  /* Accent / Branding Colors */
+  --accent-primary: #7B51EF;    /* Primary CTA buttons, active icons */
+  --accent-secondary: #AF368E;  /* Tags, highlights, subtle branding */
+  --accent-alert: #C4398A;      /* Error, warning, attention elements */
+
+  /* Status Colors (optional but recommended for system UI) */
+  --success: #22C55E;           /* Green: success states, confirmations */
+  --warning: #EAB308;           /* Yellow: warnings, alerts */
+  --error:   #EF4444;           /* Red: errors, destructive actions */
+
+  /*UI Input + Borders */
+  --input-bg: #1A0F2B;          /* Input fields, dropdown backgrounds */
+  --input-border: #4D3699;      /* Input borders or outlines */
+  --border: #2a2a2a;            /* Generic dividers, outlines, strokes */
+
+  /* Misc Utility */
+  --shadow: rgba(0, 0, 0, 0.3); /* Box shadows */
+  --overlay: rgba(0, 0, 0, 0.6);/* Modals, overlays */
 }
 
 @theme inline {
@@ -59,14 +75,6 @@
   background: transparent;
 }
 
-/* Optional dark theme toggle (can enable later)
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-*/
 
 body {
   @apply bg-background text-text-primary font-sans;
