@@ -1,11 +1,11 @@
 'use client'
 
 import { SessionProvider } from 'next-auth/react'
-import AuthGuard from '../components/auth/AuthGuard'
+import AuthGuard from '@/components/auth/AuthGuard'
+import Sidebar from '@/components/layouts/Sidebar'
 import SplitLayout from '@/components/layouts/SplitLayout'
 import LeftPanel from '@/components/LeftPanel/LeftPanel'
 import RightPanel from '@/components/RightPanel/RightPanel'
-import Sidebar from '@/components/layouts/Sidebar'
 
 export default function Providers() {
   return (

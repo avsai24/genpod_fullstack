@@ -5,7 +5,6 @@ import CodeView from './CodeTab/CodeView'
 import PreviewView from './PreviewTab/PreviewView'
 import ConfigureTab from './ConfigureTab/ConfigureTab'
 import InsightsTab from './InsightsTab/InsightsTab'
-import UserMenu from '@/components/auth/UserMenu'
 import {
   Code2,
   Eye,
@@ -47,29 +46,23 @@ export default function RightPanel() {
 
   return (
     <div className="h-full flex flex-col bg-surface text-text-primary">
-      {/* Tab Buttons + UserMenu */}
-      <div className="flex justify-between items-center border-b border-border bg-background text-sm px-2">
-        {/* Tabs */}
-        <div className="flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-1 px-4 py-2 font-medium border-b-2 transition-all duration-200 ease-in-out
-                ${
-                  activeTab === tab
-                    ? 'border-primary text-primary bg-surface rounded-t-md shadow-sm'
-                    : 'border-transparent text-text-secondary hover:text-primary hover:bg-surface'
-                }`}
-            >
-              {getIcon(tab)}
-              <span>{tab}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* User Info + Sign out */}
-        <UserMenu />
+      {/* Tab Buttons */}
+      <div className="flex justify-start items-center border-b border-border bg-background text-sm px-2">
+        {TABS.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex items-center gap-1 px-4 py-2 font-medium border-b-2 transition-all duration-200 ease-in-out
+              ${
+                activeTab === tab
+                  ? 'border-primary text-primary bg-surface rounded-t-md shadow-sm'
+                  : 'border-transparent text-text-secondary hover:text-primary hover:bg-surface'
+              }`}
+          >
+            {getIcon(tab)}
+            <span>{tab}</span>
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}
