@@ -1,3 +1,5 @@
+// src/app/login/layout.tsx
+
 import { Geist, Geist_Mono } from 'next/font/google'
 
 const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
@@ -9,10 +11,8 @@ export default function LoginLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
-      </body>
-    </html>
-  );
+    <div className={`${geistSans.variable} ${geistMono.variable}`}>
+      {children}
+    </div>
+  )
 }
