@@ -1,4 +1,3 @@
-// src/components/auth/AuthGuard.tsx
 'use client'
 
 import { useSession } from 'next-auth/react'
@@ -11,6 +10,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
+    if (session) {
+      // ✅ This will log for BOTH username and Google login
+      console.log('🧠 Session in AuthGuard:', session)
+    }
+
     if (status === 'loading') return
     if (!session && pathname !== '/login') {
       router.push('/login')

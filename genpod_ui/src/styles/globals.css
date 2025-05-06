@@ -94,7 +94,13 @@ body {
 }
 
 .enterprise-button {
-  @apply bg-accent hover:bg-[#2563EB] text-white px-4 py-2 rounded-md transition-all duration-200 ease-in-out;
+  @apply text-white px-4 py-2 rounded-md font-semibold transition-all duration-200 ease-in-out;
+  background: linear-gradient(135deg, #7B51EF, #AF368E);
+  box-shadow: 0 4px 14px 0 rgba(123, 81, 239, 0.39);
+}
+.enterprise-button:hover {
+  background: linear-gradient(135deg, #9659FF, #C4398A);
+  box-shadow: 0 4px 20px 0 rgba(175, 54, 142, 0.6);
 }
 
 .enterprise-button-secondary {

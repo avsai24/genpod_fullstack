@@ -1,92 +1,160 @@
 'use client'
 
-import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { signIn, useSession } from 'next-auth/react'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
+  const { data: session } = useSession()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const router = useRouter()
 
-  // ✅ Wait for session to be ready before redirecting
-  const waitForSession = async (retries = 10) => {
-    for (let i = 0; i < retries; i++) {
-      const session = await getSession()
-      if (session) return true
-      await new Promise((res) => setTimeout(res, 200))
-    }
-    return false
-  }
+  useEffect(() => {
+    console.log('🧠 Current session:', session)
+  }, [session])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!username || !password) {
+      setError('Please fill in all fields')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(username)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
     const res = await signIn('credentials', {
       redirect: false,
       username,
       password,
+      callbackUrl: '/',
     })
 
-    if (res?.error) {
-      setError('Invalid credentials')
+    if (res?.ok) {
+      window.location.href = res.url || '/'
     } else {
-      const ready = await waitForSession()
-      if (ready) router.push('/')
-      else setError('Login failed. Please try again.')
+      setError(res?.error || 'Invalid credentials')
     }
   }
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden text-white">
-      <div className="absolute inset-0 animate-gradient z-0" />
+    <div className="min-h-screen bg-background text-text-primary flex items-center justify-center px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="w-full max-w-md bg-surface border border-border rounded-xl shadow-xl p-8"
+      >
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Image src="/logo/logo.png" alt="Genpod Logo" width={120} height={40} />
+        </div>
 
-      <div className="relative z-10 flex items-center justify-center min-h-screen">
-        <motion.form
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          onSubmit={handleLogin}
-          className="bg-[#1a1a1a] p-8 rounded-xl border border-[#2a2a2a] shadow-lg w-full max-w-sm"
-        >
-          <h2 className="text-2xl font-semibold mb-2 text-center">🔐 Genpod Login</h2>
-          <p className="text-sm text-gray-400 mb-6 text-center">Secure access to your Genpod workspace</p>
+        <h2 className="text-2xl font-bold text-center mb-2">Welcome back</h2>
+        <p className="text-sm text-text-secondary text-center mb-6">Login to your Genpod workspace</p>
 
-          {error && <div className="mb-4 text-red-400 text-sm">{error}</div>}
+        {error && <div className="text-error text-sm mb-4 text-center">{error}</div>}
 
+        {/* Credentials Form */}
+        <form className="space-y-4" onSubmit={handleLogin}>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Email address"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-4 py-2 rounded bg-black text-white border border-[#2a2a2a] mb-4 focus:outline-none focus:border-[#14b8a6]"
+            className="enterprise-input w-full"
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded bg-black text-white border border-[#2a2a2a] mb-4 focus:outline-none focus:border-[#14b8a6]"
-          />
-
-          <div className="flex items-center justify-between text-sm text-gray-400 mb-6">
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" />
-              <span>Remember Me</span>
-            </label>
-            <a href="#" className="text-[#14b8a6] hover:underline">Forgot Password?</a>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="enterprise-input w-full pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
-          <button
-            type="submit"
-            className="w-full bg-[#14b8a6] hover:bg-[#0d9488] text-white py-2 rounded font-medium transition"
-          >
-            Sign In
+          <div className="flex justify-end mt-1 mb-2">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-text-primary hover:text-accent-primary underline-offset-2 hover:underline transition"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          <button type="submit" className="enterprise-button w-full mt-1">
+            Continue
           </button>
-        </motion.form>
-      </div>
+        </form>
+
+        {/* Navigation link */}
+        <p className="text-sm text-center text-text-secondary mt-5">
+          Don’t have an account?{' '}
+          <Link
+            href="/signup"
+            className="text-xs text-text-primary hover:text-accent-primary underline-offset-2 hover:underline transition"
+          >
+            Create one
+          </Link>
+        </p>
+
+        {/* Divider */}
+        <div className="flex items-center my-6">
+          <div className="flex-grow h-px bg-border" />
+          <span className="mx-2 text-text-secondary text-xs">OR</span>
+          <div className="flex-grow h-px bg-border" />
+        </div>
+
+        {/* Social Logins */}
+        <div className="space-y-2">
+          {[
+            { id: 'google', label: 'Google', icon: 'google.svg' },
+            { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
+            { id: 'github', label: 'GitHub', icon: 'github.svg' },
+            { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
+            { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
+          ].map(({ id, label, icon }) => (
+            <button
+              key={id}
+              onClick={() => signIn(id, { callbackUrl: '/' })}
+              type="button"
+              className="flex items-center gap-3 w-full text-sm font-medium text-white py-2.5 px-4 rounded-md border border-border bg-input hover:bg-surface-hover hover:scale-[1.01] hover:shadow-lg transition-all duration-150"
+            >
+              <Image src={`/icons/${icon}`} alt={label} width={18} height={18} />
+              Continue with {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-text-secondary mt-6">
+          <Link href="#" className="hover:underline">
+            Terms of Use
+          </Link>{' '}
+          |{' '}
+          <Link href="#" className="hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
+      </motion.div>
     </div>
   )
 }
