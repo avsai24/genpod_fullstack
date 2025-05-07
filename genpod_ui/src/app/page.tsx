@@ -1,6 +1,11 @@
 // src/app/page.tsx
-import Providers from './providers'
+import PromptLayout from '@/components/layouts/PromptLayout'
+import PromptView from '@/components/main_page/PromptView'
 
 export default function Home() {
-  return <Providers />
+  return (
+    <PromptLayout>
+      <PromptView />
+    </PromptLayout>
+  )
 }

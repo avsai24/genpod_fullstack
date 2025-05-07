@@ -6,6 +6,7 @@ import AzureADProvider from 'next-auth/providers/azure-ad'
 import GitHubProvider from 'next-auth/providers/github'
 import GitLabProvider from 'next-auth/providers/gitlab'
 import LinkedInProvider from 'next-auth/providers/linkedin'
+import AtlassianProvider from 'next-auth/providers/atlassian'
 
 import type { NextAuthOptions } from 'next-auth'
 
@@ -42,6 +43,12 @@ export const authOptions: NextAuthOptions = {
         params: { scope: 'r_liteprofile r_emailaddress' },
       },
     }),
+
+    AtlassianProvider({
+      clientId: process.env.ATLASSIAN_CLIENT_ID!,
+      clientSecret: process.env.ATLASSIAN_CLIENT_SECRET!,
+    }),
+    
 
     // ✅ Credentials Login (Username & Password)
     CredentialsProvider({

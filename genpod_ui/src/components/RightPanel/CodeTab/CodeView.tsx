@@ -75,7 +75,7 @@ export default function CodeView() {
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/>
             </svg>
             <p>No project workspace yet</p>
-            <p>Start a chat with Genpod to create or open a project</p>
+            <p>Start a chat to create or open a project</p>
           </div>
         </div>
       )}

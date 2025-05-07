@@ -105,7 +105,7 @@ export default function ChatTab() {
                     <span className="w-2 h-2 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
                     <span className="w-2 h-2 bg-white rounded-full animate-bounce" />
                   </div>
-                  <span>Genpod is thinking...</span>
+                  <span>Work in progress...</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-accent mb-3">
@@ -177,7 +177,7 @@ export default function ChatTab() {
             <textarea
               rows={1}
               className="w-full bg-transparent text-sm text-textPrimary placeholder-textSecondary outline-none resize-none custom-scrollbar"
-              placeholder="Message Genpod..."
+              placeholder="Enter your prompt here..."
               value={input}
               onChange={(e) => {
                 setInput(e.target.value)
@@ -213,7 +213,7 @@ export default function ChatTab() {
                     ? 'bg-white cursor-not-allowed'
                     : 'bg-white hover:bg-[#f3f4f6] active:bg-[#e5e7eb] active:scale-95 hover:shadow-md active:shadow text-[#1F2937]'
                 }`}
-                title={isStreaming ? "Genpod is thinking..." : "Send"}
+                title={isStreaming ? "Work in progress..." : "Send"}
               >
                 {isStreaming ? (
                   <div className="w-4 h-4 border-[3px] border-[#1F2937] border-t-transparent rounded-full animate-slow-spin" />

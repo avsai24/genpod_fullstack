@@ -64,7 +64,7 @@ export default function SignupPage() {
           }`}
         >
           <div className="flex justify-center mb-6">
-            <Image src="/logo/logo.png" alt="Genpod Logo" width={120} height={40} />
+            <Image src="/logo/Capten_logo_full.svg" alt="Capten.ai Logo" width={120} height={40} />
           </div>
 
           <h2 className="text-2xl font-bold text-center mb-1">Create your account</h2>
@@ -133,12 +133,13 @@ export default function SignupPage() {
 
           {/* Social Signups */}
           <div className="space-y-2">
-            {[
+          {[
               { id: 'google', label: 'Google', icon: 'google.svg' },
               { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
               { id: 'github', label: 'GitHub', icon: 'github.svg' },
               { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
               { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
+              { id: 'atlassian', label: 'Atlassian', icon: 'atlassian.svg' },
             ].map(({ id, label, icon }) => (
               <button
                 key={id}

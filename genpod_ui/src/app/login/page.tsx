@@ -56,11 +56,11 @@ export default function LoginPage() {
       >
         {/* Logo */}
         <div className="flex justify-center mb-6">
-          <Image src="/logo/logo.png" alt="Genpod Logo" width={120} height={40} />
+          <Image src="/logo/Capten_logo_full.svg" alt="Capten Logo" width={120} height={40} />
         </div>
 
         <h2 className="text-2xl font-bold text-center mb-2">Welcome back</h2>
-        <p className="text-sm text-text-secondary text-center mb-6">Login to your Genpod workspace</p>
+        <p className="text-sm text-text-secondary text-center mb-6">Login to your Engineering envm</p>
 
         {error && <div className="text-error text-sm mb-4 text-center">{error}</div>}
 
@@ -125,12 +125,13 @@ export default function LoginPage() {
 
         {/* Social Logins */}
         <div className="space-y-2">
-          {[
+        {[
             { id: 'google', label: 'Google', icon: 'google.svg' },
             { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
             { id: 'github', label: 'GitHub', icon: 'github.svg' },
             { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
             { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
+            { id: 'atlassian', label: 'Atlassian', icon: 'atlassian.svg' },
           ].map(({ id, label, icon }) => (
             <button
               key={id}
