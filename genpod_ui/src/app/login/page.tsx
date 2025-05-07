@@ -5,44 +5,68 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { Eye, EyeOff } from 'lucide-react'
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import { app } from '@/lib/firebase'
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier
+    confirmationResult: import('firebase/auth').ConfirmationResult
+  }
+}
 
 export default function LoginPage() {
   const { data: session } = useSession()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [countryCode, setCountryCode] = useState('+1')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     console.log('🧠 Current session:', session)
   }, [session])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const auth = getAuth(app)
+      if (!window.recaptchaVerifier) {
+        const recaptchaContainer = document.getElementById('recaptcha-container')
+        if (!recaptchaContainer) return
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA solved')
+          },
+        })
+      }
+    } catch (err) {
+      console.error('RecaptchaVerifier error:', err)
+    }
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!username || !password) {
-      setError('Please fill in all fields')
+    const fullPhone = `${countryCode}${phone}`.replace(/\s/g, '')
+    const phoneRegex = /^\+\d{10,15}$/
+    if (!phoneRegex.test(fullPhone)) {
+      setError('Enter a valid phone number with country code')
       return
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(username)) {
-      setError('Please enter a valid email address')
-      return
-    }
-
-    const res = await signIn('credentials', {
-      redirect: false,
-      username,
-      password,
-      callbackUrl: '/',
-    })
-
-    if (res?.ok) {
-      window.location.href = res.url || '/'
-    } else {
-      setError(res?.error || 'Invalid credentials')
+    try {
+      setLoading(true)
+      const auth = getAuth(app)
+      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier)
+      window.confirmationResult = confirmationResult
+      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
+      sessionStorage.setItem('loginPhone', fullPhone)
+      window.location.href = `/verify-otp?phone=${encodeURIComponent(fullPhone)}`
+    } catch (err: any) {
+      console.error('OTP sending failed:', err)
+      setError('Failed to send OTP. Try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -64,48 +88,37 @@ export default function LoginPage() {
 
         {error && <div className="text-error text-sm mb-4 text-center">{error}</div>}
 
-        {/* Credentials Form */}
+        {/* OTP Login Form */}
         <form className="space-y-4" onSubmit={handleLogin}>
-          <input
-            type="text"
-            placeholder="Email address"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="enterprise-input w-full"
-          />
-
-          <div className="relative">
+          <div className="flex gap-2">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="w-24 enterprise-input"
+            >
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+91">🇮🇳 +91</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+61">🇦🇺 +61</option>
+              <option value="+81">🇯🇵 +81</option>
+            </select>
             <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="enterprise-input w-full pr-10"
+              type="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                if (error) setError('')
+              }}
+              className="flex-1 enterprise-input"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
           </div>
 
-          <div className="flex justify-end mt-1 mb-2">
-            <Link
-              href="/forgot-password"
-              className="text-xs text-text-primary hover:text-accent-primary underline-offset-2 hover:underline transition"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
-          <button type="submit" className="enterprise-button w-full mt-1">
-            Continue
+          <button type="submit" className="enterprise-button w-full mt-1" disabled={loading}>
+            {loading ? 'Sending OTP...' : 'Continue'}
           </button>
         </form>
 
-        {/* Navigation link */}
         <p className="text-sm text-center text-text-secondary mt-5">
           Don’t have an account?{' '}
           <Link
@@ -116,7 +129,6 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        {/* Divider */}
         <div className="flex items-center my-6">
           <div className="flex-grow h-px bg-border" />
           <span className="mx-2 text-text-secondary text-xs">OR</span>
@@ -125,7 +137,7 @@ export default function LoginPage() {
 
         {/* Social Logins */}
         <div className="space-y-2">
-        {[
+          {[
             { id: 'google', label: 'Google', icon: 'google.svg' },
             { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
             { id: 'github', label: 'GitHub', icon: 'github.svg' },
@@ -145,15 +157,13 @@ export default function LoginPage() {
           ))}
         </div>
 
+        {/* reCAPTCHA element */}
+        <div id="recaptcha-container" />
+
         {/* Footer */}
         <p className="text-center text-xs text-text-secondary mt-6">
-          <Link href="#" className="hover:underline">
-            Terms of Use
-          </Link>{' '}
-          |{' '}
-          <Link href="#" className="hover:underline">
-            Privacy Policy
-          </Link>
+          <Link href="#" className="hover:underline">Terms of Use</Link> |{' '}
+          <Link href="#" className="hover:underline">Privacy Policy</Link>
         </p>
       </motion.div>
     </div>

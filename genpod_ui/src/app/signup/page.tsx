@@ -1,20 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
-import { Eye, EyeOff } from 'lucide-react'
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import { app } from '@/lib/firebase'
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier
+    confirmationResult: import('firebase/auth').ConfirmationResult
+  }
+}
 
 export default function SignupPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [countryCode, setCountryCode] = useState('+1')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
 
   const shakeForm = () => {
@@ -22,100 +31,143 @@ export default function SignupPage() {
     setTimeout(() => setShake(false), 500)
   }
 
+  // ✅ Delay recaptcha setup until DOM is ready and container exists
+  useEffect(() => {
+    const auth = getAuth(app)
+
+    const setupRecaptcha = () => {
+      if (typeof window === 'undefined' || window.recaptchaVerifier) return
+
+      const container = document.getElementById('recaptcha-container')
+      if (!container) return
+
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA solved')
+          },
+        })
+      } catch (err) {
+        console.error('reCAPTCHA setup failed:', err)
+      }
+    }
+
+    const interval = setInterval(() => {
+      if (document.getElementById('recaptcha-container')) {
+        clearInterval(interval)
+        setupRecaptcha()
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [])
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid Gmail address')
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Please enter your first and last name')
       shakeForm()
       return
     }
 
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/
-    if (!passwordRegex.test(password)) {
-      setError('Password must be 8+ chars with uppercase, number & symbol')
+    const fullPhone = `${countryCode}${phone}`.replace(/\s/g, '')
+    const phoneRegex = /^\+\d{10,15}$/
+    if (!phoneRegex.test(fullPhone)) {
+      setError('Enter a valid phone number with country code')
       shakeForm()
       return
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      shakeForm()
-      return
-    }
+    try {
+      setLoading(true)
+      const auth = getAuth(app)
 
-    // Simulate API call success
-    router.push('/login')
+      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier)
+      window.confirmationResult = confirmationResult
+      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
+      sessionStorage.setItem('signupMeta', JSON.stringify({ firstName, lastName, phone: fullPhone }))
+
+      router.push(`/verify-otp?phone=${encodeURIComponent(fullPhone)}`)
+    } catch (err: any) {
+      console.error('OTP sending failed:', err)
+      if (err.code === 'auth/billing-not-enabled') {
+        setError('Phone sign-in requires Firebase billing to be enabled.')
+      } else {
+        setError('Failed to send OTP. Please try again.')
+      }
+      shakeForm()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-text-primary">
-      <div className="absolute inset-0 z-0 animate-gradient" />
+      {/* ✅ Early mount for reCAPTCHA */}
+      <div id="recaptcha-container" style={{ position: 'absolute', zIndex: -1 }} />
 
+      <div className="absolute inset-0 z-0 animate-gradient" />
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
         <motion.form
+          onSubmit={handleSignup}
+          className={`w-full max-w-sm bg-surface border border-border rounded-xl shadow-xl p-8 ${shake ? 'animate-shake' : ''}`}
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          onSubmit={handleSignup}
-          className={`w-full max-w-sm bg-surface border border-border rounded-xl shadow-xl p-8 ${
-            shake ? 'animate-shake' : ''
-          }`}
+          transition={{ duration: 0.6 }}
         >
           <div className="flex justify-center mb-6">
-            <Image src="/logo/Capten_logo_full.svg" alt="Capten.ai Logo" width={120} height={40} />
+            <Image src="/logo/Capten_logo_full.svg" alt="Capten Logo" width={120} height={40} />
           </div>
 
           <h2 className="text-2xl font-bold text-center mb-1">Create your account</h2>
-          <p className="text-sm text-text-secondary text-center mb-5">Sign up with your team Gmail</p>
+          <p className="text-sm text-text-secondary text-center mb-5">Sign up using your phone number</p>
 
           {error && <div className="text-error text-sm mb-4 text-center">{error}</div>}
 
           <input
-            type="email"
-            placeholder="Gmail address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="First name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
             className="enterprise-input w-full mb-4"
           />
 
-          <div className="relative mb-4">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="enterprise-input w-full pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400"
+          <input
+            type="text"
+            placeholder="Last name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className="enterprise-input w-full mb-4"
+          />
+
+          <div className="flex mb-4 gap-2">
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="w-24 enterprise-input"
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+91">🇮🇳 +91</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+61">🇦🇺 +61</option>
+              <option value="+81">🇯🇵 +81</option>
+            </select>
+            <input
+              type="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                if (error) setError('')
+              }}
+              className="flex-1 enterprise-input"
+            />
           </div>
 
-          <div className="relative mb-6">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="enterprise-input w-full pr-10"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-
-          <button type="submit" className="enterprise-button w-full">
-            Sign Up
+          <button type="submit" className="enterprise-button w-full" disabled={loading}>
+            {loading ? 'Sending OTP...' : 'Send OTP'}
           </button>
 
           <p className="text-xs text-center text-text-secondary mt-4">
@@ -131,15 +183,12 @@ export default function SignupPage() {
             <div className="flex-grow h-px bg-border" />
           </div>
 
-          {/* Social Signups */}
           <div className="space-y-2">
-          {[
+            {[
               { id: 'google', label: 'Google', icon: 'google.svg' },
-              { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
+              { id: 'azure-ad', label: 'Microsoft', icon: 'microsoft.svg' },
               { id: 'github', label: 'GitHub', icon: 'github.svg' },
-              { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
               { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
-              { id: 'atlassian', label: 'Atlassian', icon: 'atlassian.svg' },
             ].map(({ id, label, icon }) => (
               <button
                 key={id}
