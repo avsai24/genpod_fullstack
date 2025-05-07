@@ -10,19 +10,15 @@ import {
   LogOut,
   SlidersHorizontal,
   UserCog,
+  Paperclip,
 } from 'lucide-react'
 import Image from 'next/image'
 import { useChatStore } from '@/state/chatStore'
 import { useSidebarStore } from '@/state/sidebarStore'
+
 const projects = ['avsai', 'charan', 'chandu', 'viswas']
 
-type ProfileOption = {
-  label: string
-  icon: React.ReactNode
-  onClick?: () => void
-}
-
-const profileOptions: ProfileOption[] = [
+const profileOptions = [
   { label: 'My Account', icon: <UserCircle2 size={16} /> },
   { label: 'Personalise', icon: <UserCog size={16} /> },
   { label: 'Settings', icon: <SlidersHorizontal size={16} /> },
@@ -39,12 +35,12 @@ export default function Sidebar() {
 
   const isHovered = useSidebarStore((s) => s.isHovered)
   const setHovered = useSidebarStore((s) => s.setHovered)
-
-  const expandedItem = useSidebarStore((s) => s.expandedItem)
+  const expandedItems = useSidebarStore((s) => s.expandedItems)
   const toggleExpandedItem = useSidebarStore((s) => s.toggleExpandedItem)
   const resetExpandedItem = useSidebarStore((s) => s.resetExpandedItem)
-  const keepExpanded = useSidebarStore((s) => s.keepExpanded)
 
+  const isExpanded = (key: 'projects' | 'tasks' | 'profile') =>
+    expandedItems.includes(key)
 
   return (
     <div
@@ -54,7 +50,7 @@ export default function Sidebar() {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => {
         setHovered(false)
-        if (!keepExpanded) {
+        if (!useSidebarStore.getState().keepExpanded) {
           resetExpandedItem()
         }
       }}
@@ -76,7 +72,7 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Main Icons */}
+        {/* Main Sections */}
         <SidebarIcon
           icon={<MessageSquare size={20} />}
           label="New Chat"
@@ -89,12 +85,11 @@ export default function Sidebar() {
           label="Projects"
           isHovered={isHovered}
           onClick={() => toggleExpandedItem('projects')}
-          active={expandedItem === 'projects'}
+          active={isExpanded('projects')}
         />
 
-        {/* Projects List */}
-        {isHovered && expandedItem === 'projects' && (
-          <div className="ml-12 mt-1 space-y-1 transition-all duration-200 ease-out">
+        {isHovered && isExpanded('projects') && (
+          <div className="ml-12 mt-1 space-y-1">
             {projects.map((proj) => (
               <div
                 key={proj}
@@ -102,7 +97,7 @@ export default function Sidebar() {
                   setCurrentProject(proj)
                   router.push(`/projects/${proj}`)
                 }}
-                className="flex items-center text-sm text-[var(--text-primary)] cursor-pointer hover:text-[var(--accent-secondary)] transition-colors"
+                className="text-sm text-[var(--text-primary)] cursor-pointer hover:text-[var(--accent-secondary)]"
               >
                 <span className="mr-2 text-[var(--accent-secondary)] text-xs">›</span>
                 {proj}
@@ -111,12 +106,43 @@ export default function Sidebar() {
           </div>
         )}
 
-        <SidebarIcon icon={<Settings size={20} />} label="User Settings" isHovered={isHovered} />
+        <SidebarIcon
+          icon={<Settings size={20} />}
+          label="User Settings"
+          isHovered={isHovered}
+        />
 
+        {/* 🔥 Tasks Section */}
+        <SidebarIcon
+          icon={<Paperclip size={20} />}
+          label="Tasks"
+          isHovered={isHovered}
+          onClick={() => toggleExpandedItem('tasks')}
+          active={isExpanded('tasks')}
+        />
+
+        {isHovered && isExpanded('tasks') && (
+          <div className="ml-12 mt-1 space-y-1">
+            <div
+              onClick={() => router.push('/tasks/build-login-agent')}
+              className="text-sm text-[var(--text-primary)] cursor-pointer hover:text-[var(--accent-secondary)]"
+            >
+              Build login agent
+            </div>
+            <div
+              onClick={() => router.push('/tasks/setup-email-summarizer')}
+              className="text-sm text-[var(--text-primary)] cursor-pointer hover:text-[var(--accent-secondary)]"
+            >
+              Setup email summarizer
+            </div>
+          </div>
+        )}
+
+        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Profile Options */}
-        {isHovered && expandedItem === 'profile' && (
+        {/* Profile Section */}
+        {isHovered && isExpanded('profile') && (
           <div className="ml-4 mb-2 p-2 rounded-lg shadow-lg bg-[var(--surface)] border border-[var(--border)] space-y-2 animate-fade-in w-48">
             {profileOptions.map((opt) => (
               <div
@@ -131,10 +157,10 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Profile Avatar */}
         <div
           className="flex items-center w-full px-4 mb-2 cursor-pointer hover:bg-[var(--surface-hover)] rounded transition-colors duration-200 py-3"
-          onClick={() => toggleExpandedItem('profile')}        >
+          onClick={() => toggleExpandedItem('profile')}
+        >
           <div className="w-8 h-8 rounded-full bg-[var(--accent-secondary)] text-white flex items-center justify-center text-xs font-bold">
             A
           </div>

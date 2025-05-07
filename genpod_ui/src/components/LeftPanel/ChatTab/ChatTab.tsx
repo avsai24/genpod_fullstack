@@ -131,15 +131,40 @@ export default function ChatTab() {
         )}
 
         {answerChunks.length > 0 && (
-          <div className="w-full text-textPrimary leading-relaxed px-1 whitespace-pre-wrap break-words">
-            <ReactMarkdown
-        key={answerChunks.length}
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-      >
-        {answerChunks.join('')}
-      </ReactMarkdown>
-          </div>
+          <div className="w-full max-w-full overflow-x-auto text-textPrimary leading-relaxed px-1">
+          <ReactMarkdown
+            key={answerChunks.length}
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+              pre: ({ node, ...props }) => (
+                <pre
+                  {...props}
+                  className="overflow-x-auto rounded-md bg-[#111] p-3 text-sm text-white whitespace-pre-wrap break-words max-w-full"
+                />
+              ),
+              code: ({ node, inline, className, children, ...props }) => {
+                return inline ? (
+                  <code
+                    {...props}
+                    className="bg-gray-800 text-white px-1 rounded text-sm"
+                  >
+                    {children}
+                  </code>
+                ) : (
+                  <code
+                    {...props}
+                    className={`block overflow-x-auto rounded bg-[#111] p-2 text-sm text-white ${className || ''}`}
+                  >
+                    {children}
+                  </code>
+                )
+              }
+            }}
+          >
+            {answerChunks.join('')}
+          </ReactMarkdown>
+        </div>
         )}
 
         <div ref={messagesEndRef} />

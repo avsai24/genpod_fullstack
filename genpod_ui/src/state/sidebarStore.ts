@@ -1,31 +1,43 @@
 // src/state/sidebarStore.ts
-// src/state/sidebarStore.ts
 import { create } from 'zustand'
+
+type ExpandableSection = 'projects' | 'profile' | 'tasks'
 
 interface SidebarState {
   isHovered: boolean
-  expandedItem: 'projects' | 'profile' | null
+  expandedItems: ExpandableSection[]
   keepExpanded: boolean
   setHovered: (val: boolean) => void
-  toggleExpandedItem: (item: 'projects' | 'profile') => void
+  setExpandedItem: (item: ExpandableSection) => void
+  toggleExpandedItem: (item: ExpandableSection) => void
   resetExpandedItem: () => void
   setKeepExpanded: (val: boolean) => void
 }
 
 export const useSidebarStore = create<SidebarState>((set) => ({
   isHovered: false,
-  expandedItem: null,
+  expandedItems: [],
   keepExpanded: false,
 
   setHovered: (val) => set({ isHovered: val }),
 
-  toggleExpandedItem: (item) =>
+  setExpandedItem: (item) =>
     set((state) => ({
-      expandedItem: state.expandedItem === item ? null : item,
-      keepExpanded: state.expandedItem === item ? false : true,
+      expandedItems: Array.from(new Set([...state.expandedItems, item])),
     })),
 
-  resetExpandedItem: () => set({ expandedItem: null, keepExpanded: false }),
+  toggleExpandedItem: (item) =>
+    set((state) => {
+      const isAlreadyExpanded = state.expandedItems.includes(item)
+      return {
+        expandedItems: isAlreadyExpanded
+          ? state.expandedItems.filter((i) => i !== item)
+          : [...state.expandedItems, item],
+        keepExpanded: true,
+      }
+    }),
+
+  resetExpandedItem: () => set({ expandedItems: [], keepExpanded: false }),
 
   setKeepExpanded: (val) => set({ keepExpanded: val }),
 }))
