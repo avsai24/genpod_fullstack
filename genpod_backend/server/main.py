@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import files, settings, prompt_routes, chat_stream
+from .api import files, settings, prompt_routes, chat_stream, check_user
+from server.api import register 
 from .services.file_events import FileEventsService
 import logging
 from pathlib import Path
@@ -58,8 +59,10 @@ app.include_router(files.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(prompt_routes.router, prefix="/api")
 app.include_router(chat_stream.router, prefix="/api/chat")  
+app.include_router(check_user.router, prefix="/api")
+app.include_router(register.router, prefix="/api")
 
-# Add a health check endpoint
+# Add a health check endpointcle
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
