@@ -3,28 +3,26 @@ from fastapi.responses import JSONResponse
 import sqlite3
 import uuid
 from datetime import datetime
-from typing import Optional
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 router = APIRouter()
 
-DB_PATH = "/Users/venkatasaiancha/Documents/captenai/genpod_UI/genpod_backend/users.db"
+DB_PATH = os.getenv("DB_PATH")
+if not DB_PATH:
+    raise RuntimeError("DB_PATH not set in .env")
 
 def get_db_connection():
     return sqlite3.connect(DB_PATH)
 
 def validate_input(data: dict) -> tuple[bool, str]:
-    """Validate registration input data."""
-    required_fields = ["provider", "first_name", "last_name"]
-    for field in required_fields:
-        if not data.get(field):
-            return False, f"Missing required field: {field}"
-
-    if not data.get("email") and not data.get("phone"):
-        return False, "Either email or phone is required"
-
-    if data.get("phone") and not data["phone"].startswith("+"):
-        return False, "Phone number must start with country code (e.g., +1)"
-
+    if not data.get("provider"):
+        return False, "Missing provider"
+    if not data.get("username"):
+        return False, "Missing username"
+    if not data.get("phone") and not data.get("email"):
+        return False, "Either phone or email is required"
     return True, ""
 
 @router.post("/users/register")
@@ -32,84 +30,66 @@ async def register_user(req: Request):
     conn = None
     try:
         data = await req.json()
-        
-        # Validate input
+
         is_valid, error_message = validate_input(data)
         if not is_valid:
-            return JSONResponse(
-                content={"ok": False, "message": error_message},
-                status_code=400
-            )
+            return JSONResponse(content={"ok": False, "message": error_message}, status_code=400)
 
-        # Normalize provider
-        provider = data["provider"].lower()
-        if provider == "firebase-otp":
-            provider = "phone"
-
-        # Generate user data
+        provider = data["provider"]
+        username = data["username"].strip().lower()
+        auth_id = data.get("phone") or data.get("email")
         user_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Ensure table exists with proper constraints
+        # Create table if not exists
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
-                email TEXT,
-                phone TEXT UNIQUE,
+                auth_id TEXT NOT NULL UNIQUE,
                 provider TEXT NOT NULL,
-                first_name TEXT NOT NULL,
-                last_name TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                UNIQUE(email, provider)
+                username TEXT NOT NULL,
+                created_at TEXT NOT NULL
             );
         """)
 
-        # Check for existing phone number
-        if data.get("phone"):
-            cursor.execute("SELECT 1 FROM users WHERE phone = ?", (data["phone"],))
-            if cursor.fetchone():
+        # Check if user with same auth_id exists
+        cursor.execute("SELECT provider FROM users WHERE auth_id = ?", (auth_id,))
+        row = cursor.fetchone()
+        if row:
+            existing_provider = row[0].lower()
+
+            # ✅ Only apply provider mismatch error for email-based users
+            if data.get("email") and existing_provider != provider:
                 return JSONResponse(
-                    content={"ok": False, "message": "Phone number already registered"},
+                    content={
+                        "ok": False,
+                        "message": (
+                            f'You tried signing in as "{auth_id}" via {provider}, which is not the authentication method you used during signup. '
+                            "Try again using the authentication method you used during signup."
+                        )
+                    },
                     status_code=409
                 )
 
-        # Check for existing email + provider combination
-        if data.get("email"):
-            cursor.execute(
-                "SELECT 1 FROM users WHERE email = ? AND provider = ?",
-                (data["email"], provider)
+            # Same provider — still block duplicate registration
+            readable_id = "Phone number" if provider == "firebase-otp" else "Email"
+            return JSONResponse(
+                content={"ok": False, "message": f"{readable_id} already registered"},
+                status_code=409
             )
-            if cursor.fetchone():
-                return JSONResponse(
-                    content={"ok": False, "message": "Email already registered with this provider"},
-                    status_code=409
-                )
 
         # Insert new user
         cursor.execute("""
-            INSERT INTO users (id, email, phone, provider, first_name, last_name, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user_id,
-            data.get("email"),
-            data.get("phone"),
-            provider,
-            data["first_name"],
-            data["last_name"],
-            created_at
-        ))
-        
+            INSERT INTO users (id, auth_id, provider, username, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, auth_id, provider, username, created_at))
         conn.commit()
 
         return JSONResponse(
-            content={
-                "ok": True,
-                "message": "User registered successfully",
-                "user_id": user_id
-            }
+            content={"ok": True, "message": "User registered", "user_id": user_id}
         )
 
     except Exception as e:
@@ -119,7 +99,6 @@ async def register_user(req: Request):
             content={"ok": False, "message": f"Internal server error: {str(e)}"},
             status_code=500
         )
-
     finally:
         if conn:
             conn.close()

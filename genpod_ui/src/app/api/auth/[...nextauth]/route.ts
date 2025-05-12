@@ -7,7 +7,8 @@ import GitLabProvider from 'next-auth/providers/gitlab'
 import LinkedInProvider from 'next-auth/providers/linkedin'
 import AtlassianProvider from 'next-auth/providers/atlassian'
 import { headers } from 'next/headers'
-import type { NextAuthOptions } from 'next-auth'
+import type { NextAuthOptions, User } from 'next-auth'
+import type { DecodedIdToken } from 'firebase-admin/auth'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -31,37 +32,31 @@ export const authOptions: NextAuthOptions = {
     LinkedInProvider({
       clientId: process.env.LINKEDIN_CLIENT_ID!,
       clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
-      authorization: {
-        params: { scope: 'r_liteprofile r_emailaddress' },
-      },
+      authorization: { params: { scope: 'r_liteprofile r_emailaddress' } },
     }),
     AtlassianProvider({
       clientId: process.env.ATLASSIAN_CLIENT_ID!,
       clientSecret: process.env.ATLASSIAN_CLIENT_SECRET!,
     }),
-
     CredentialsProvider({
       id: 'firebase-otp',
       name: 'FirebasePhone',
       credentials: {
         token: { label: 'Firebase ID Token', type: 'text' },
       },
-      async authorize(credentials) {
+      async authorize(credentials): Promise<User | null> {
         const token = credentials?.token
         if (!token) return null
         try {
           const { getAuth } = await import('firebase-admin/auth')
           const { firebaseAdminApp } = await import('@/lib/firebase-admin')
-          const decoded = await getAuth(firebaseAdminApp).verifyIdToken(token)
-
-          console.log('✅ Firebase decoded token:', decoded)
+          const decoded: DecodedIdToken = await getAuth(firebaseAdminApp).verifyIdToken(token)
 
           return {
             id: decoded.uid,
             name: decoded.name || '',
-            email: decoded.email || null,
-            phone: decoded.phone_number || '', // ✅ ensure phone is returned
-            image: decoded.picture || '',
+            email: decoded.email || '',
+            phone: decoded.phone_number || '',
           }
         } catch (err) {
           console.error('❌ Firebase token verification failed:', err)
@@ -80,59 +75,60 @@ export const authOptions: NextAuthOptions = {
       const provider = account?.provider
       const isPhone = provider === 'firebase-otp'
       const email = user.email
-      const phone = (user as any)?.phone
-
-      // Read intent cookie safely (Next.js app router)
+      const phone = (user as { phone?: string })?.phone
+    
       const cookieHeader = (await headers()).get('cookie') || ''
       const match = cookieHeader.match(/genpod-auth-intent=([^;]+)/)
       const intent = match?.[1] || null
-
-      console.log('🧪 Auth callback - provider:', provider)
-      console.log('🧪 Email:', email)
-      console.log('🧪 Phone:', phone)
-      console.log('🧪 Intent:', intent)
-
+    
       if (!provider) return false
-
+    
       try {
-        const body = isPhone
-          ? { phone, provider }
-          : { email, provider }
-
+        const body = isPhone ? { phone, provider } : { email, provider }
+    
         const res = await fetch('http://localhost:8000/api/users/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
-
+    
         const result = await res.json()
-        console.log('🧪 Backend check result:', result)
-
-        // 🚫 Prevent signup if account exists already
+    
         if (intent === 'signup' && result.ok) {
-          console.warn('🛑 Account already exists — blocking duplicate signup')
-          return '/login?error=already_exists'
+          // Already registered — can't signup again
+          throw new Error('/login?error=already_exists')
         }
-
-        // 🚫 Prevent login if account not found
+    
         if (intent !== 'signup' && !result.ok && result.message?.toLowerCase().includes('not found')) {
-          console.warn('🛑 No account found — blocking login')
-          return '/signup?error=not_found'
+          throw new Error('/signup?error=not_found')
         }
-
+    
+        if (!result.ok && result.message?.toLowerCase().includes('authentication method')) {
+          const msg = encodeURIComponent(result.message)
+          throw new Error(`/login?error=provider_mismatch&message=${msg}`)
+        }
+    
         return true
-      } catch (err) {
+      } catch (err: any) {
+        // ✅ Stop login and redirect user
+        if (typeof err.message === 'string' && err.message.startsWith('/')) {
+          return err.message
+        }
         console.error('❌ signIn check failed:', err)
         return '/login?error=server_error'
       }
     },
 
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        token.id = user.id
-        token.name = user.name
-        token.email = user.email
-        token.picture = user.image || (profile as any)?.picture || ''
+        const u = user as User & {
+          phone?: string
+          provider?: string
+        }
+        token.id = u.id
+        token.name = u.name || ''
+        token.email = u.email || ''
+        token.phone = u.phone || ''
         token.provider = account?.provider
       }
       return token
@@ -140,11 +136,12 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        session.user.name = token.name as string
-        session.user.email = token.email as string
-        session.user.image = token.picture as string
-        session.user.provider = token.provider as string
+        session.user.id = token.id
+        session.user.name = token.name
+        session.user.email = token.email
+        session.user.phone = token.phone
+        session.user.provider = token.provider ?? ''
+        delete (session.user as any).image // ✅ Explicitly remove profile image
       }
       return session
     },

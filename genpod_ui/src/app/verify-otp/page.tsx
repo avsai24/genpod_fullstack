@@ -38,12 +38,9 @@ export default function VerifyOtpPage() {
     setPhone(phoneParam)
 
     let interval: NodeJS.Timeout | null = null
-    let initialized = false
 
     const setupRecaptcha = () => {
-      if (typeof window === 'undefined' || window.recaptchaVerifier || initialized) return
-      const container = document.getElementById('recaptcha-container')
-      if (!container) return
+      if (typeof window === 'undefined' || window.recaptchaVerifier) return
       const auth = getAuth(app)
       try {
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -52,7 +49,6 @@ export default function VerifyOtpPage() {
           'expired-callback': () => setError('reCAPTCHA expired. Please try again.')
         })
         window.recaptchaVerifier = verifier
-        initialized = true
       } catch (err) {
         console.error('reCAPTCHA setup failed:', err)
         setError('Failed to initialize security check. Please refresh the page.')
@@ -66,8 +62,7 @@ export default function VerifyOtpPage() {
 
     return () => {
       if (interval) clearInterval(interval)
-      const verifier = window.recaptchaVerifier
-      if (verifier) verifier.clear()
+      window.recaptchaVerifier?.clear()
       delete window.recaptchaVerifier
     }
   }, [router, searchParams])
@@ -82,7 +77,6 @@ export default function VerifyOtpPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateOtp(otp)) {
       triggerShake()
       return
@@ -92,37 +86,36 @@ export default function VerifyOtpPage() {
       setLoading(true)
       setError('')
 
-      if (!window.recaptchaVerifier) {
-        const auth = getAuth(app)
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' })
-      }
-
       const credential = await window.confirmationResult.confirm(otp)
       const user = credential.user
 
       const intent = Cookies.get('genpod-auth-intent') // 'signup' or 'login'
       const signupMeta = Cookies.get('genpod-signup-meta')
-
       const checkRes = await fetch('http://localhost:8000/api/users/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, provider: 'phone' }),
+        body: JSON.stringify({ phone, provider: 'firebase-otp' }),
       })
 
-      // Case 1: user not found
       if (checkRes.status === 404) {
         if (intent === 'signup' && signupMeta) {
-          // Register new user
-          const meta = JSON.parse(signupMeta)
+          let meta
+          try {
+            meta = JSON.parse(signupMeta)
+          } catch (err) {
+            console.error('Invalid signupMeta:', signupMeta)
+            setError('Signup session expired. Please try again.')
+            return
+          }
+
           const registerRes = await fetch('http://localhost:8000/api/users/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              first_name: meta.firstName,
-              last_name: meta.lastName,
+              username: meta.username,
               phone,
-              provider: 'phone',
-              firebaseUid: user.uid
+              provider: 'firebase-otp',
+              firebaseUid: user.uid,
             }),
           })
 
@@ -135,13 +128,12 @@ export default function VerifyOtpPage() {
         }
       }
 
-      // Case 2: user exists (200 or 409) → proceed to login
       const idToken = await user.getIdToken()
 
       const result = await signIn('firebase-otp', {
         token: idToken,
         redirect: false,
-        callbackUrl: `${window.location.origin}/`,
+        callbackUrl: typeof window !== 'undefined' ? `${window.location.origin}/` : '/',
       })
 
       if (result?.error) throw new Error(result.error)

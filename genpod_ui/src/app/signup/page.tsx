@@ -22,10 +22,9 @@ export default function SignupPage() {
   const searchParams = useSearchParams()
   const recaptchaContainerRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    username: '',
     phone: '',
-    countryCode: '+1'
+    countryCode: '+1',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -48,170 +47,129 @@ export default function SignupPage() {
   }, [searchParams, router])
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    let initialized = false;
-
+    let interval: NodeJS.Timeout | null = null
     const setupRecaptcha = () => {
-      if (typeof window === 'undefined' || window.recaptchaVerifier || initialized) return;
-      const container = document.getElementById('recaptcha-container');
-      if (!container) return;
-      const auth = getAuth(app);
+      if (typeof window === 'undefined' || window.recaptchaVerifier) return
+      const auth = getAuth(app)
       try {
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
           size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA solved');
-          },
-          'expired-callback': () => {
-            console.log('reCAPTCHA expired');
-            setError('reCAPTCHA expired. Please try again.');
-          }
-        });
-        window.recaptchaVerifier = verifier;
-        initialized = true;
+          callback: () => console.log('reCAPTCHA solved'),
+          'expired-callback': () => setError('reCAPTCHA expired. Please try again.'),
+        })
+        window.recaptchaVerifier = verifier
       } catch (err) {
-        console.error('reCAPTCHA setup failed:', err);
-        setError('Failed to initialize security check. Please refresh the page.');
+        console.error('reCAPTCHA setup failed:', err)
+        setError('Failed to initialize security check.')
       }
-    };
+    }
 
     interval = setInterval(() => {
-      setupRecaptcha();
-      if (window.recaptchaVerifier) {
-        if (interval) clearInterval(interval);
-      }
-    }, 100);
+      setupRecaptcha()
+      if (window.recaptchaVerifier && interval) clearInterval(interval)
+    }, 100)
 
     return () => {
-      if (interval) clearInterval(interval);
-      const verifier = window.recaptchaVerifier;
-      if (verifier) {
-        verifier.clear();
-        delete window.recaptchaVerifier;
-      }
-    };
-  }, []);
+      if (interval) clearInterval(interval)
+      window.recaptchaVerifier?.clear()
+      delete window.recaptchaVerifier
+    }
+  }, [])
 
   const validateForm = () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      setError('Please enter your first and last name')
+    const { username, phone } = formData
+    const fullPhone = `${formData.countryCode}${phone}`.replace(/\s/g, '')
+    const usernameRegex = /^[a-z0-9_]{4,30}$/
+    const phoneRegex = /^\+\d{10,15}$/
+  
+    if (!usernameRegex.test(username)) {
+      setError('Username must be 4–30 characters. Use only lowercase letters, numbers, and underscores.')
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
       return false
     }
-
-    // Only validate phone if it's provided
-    if (formData.phone) {
-      const fullPhone = `${formData.countryCode}${formData.phone}`.replace(/\s/g, '')
-    const phoneRegex = /^\+\d{10,15}$/
+  
     if (!phoneRegex.test(fullPhone)) {
-      setError('Enter a valid phone number with country code')
-        return false
-      }
+      setError('Enter a valid phone number with country code.')
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
+      return false
     }
-
+  
     return true
   }
 
   const handleSocialSignup = async (provider: string) => {
-    if (!validateForm()) {
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
-      return
-    }
-
-    try {
-      setLoading(true)
-      Cookies.set('genpod-signup-meta', JSON.stringify({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        provider
-      }), { path: '/' })
-      Cookies.set('genpod-auth-intent', 'signup', { path: '/' })
-
-      await signIn(provider, { callbackUrl: '/post-social-redirect' })
-    } catch (err) {
-      console.error('Error during social signup:', err)
-      setError('Failed to process social signup. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+    Cookies.set('genpod-auth-intent', 'signup', { path: '/' })
+    await signIn(provider, { callbackUrl: '/post-social-redirect' })
   }
 
   const handlePhoneSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-
+  
     if (!validateForm()) {
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
+      triggerShake()
       return
     }
-
+  
     try {
       setLoading(true)
       const fullPhone = `${formData.countryCode}${formData.phone}`.replace(/\s/g, '')
+      console.log('[📱 fullPhone being sent]', fullPhone)
 
-      // Check if phone number is already registered
-      const checkRes = await fetch('http://localhost:8000/api/users/check', {
+      const trimmedUsername = formData.username.trim().toLowerCase()
+  
+      // ✅ Step 1: Check if phone is already registered
+      const res = await fetch('http://localhost:8000/api/users/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: fullPhone, provider: 'phone' }),
+        body: JSON.stringify({ phone: fullPhone, provider: 'firebase-otp' }),
       })
-
-      const check = await checkRes.json()
-
-      if (checkRes.status === 409) {
-        // ✅ Phone number already exists in DB
+  
+      const check = await res.json()
+      console.log('[CHECK RESPONSE]', res.status, check) // ✅ Debug log
+  
+      // ✅ Block signup if user exists with firebase-otp provider
+      if (check.ok && check.provider?.toLowerCase() === 'firebase-otp') {
         setError('This phone number is already registered. Please log in instead.')
-        setTimeout(() => router.push('/login'), 2500)
+        triggerShake()
         return
       }
-
-      if (checkRes.status !== 404 && !check.ok) {
-        // ✅ Unexpected error
-        setError('Something went wrong. Please try again.')
+  
+      // ❌ Handle unexpected errors
+      if (!check.ok && res.status !== 404) {
+        setError(check.message || 'Unexpected error. Please try again.')
+        triggerShake()
         return
       }
-
-      // Ensure reCAPTCHA is initialized
-      if (!window.recaptchaVerifier) {
-        const auth = getAuth(app)
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA solved')
-          },
-          'expired-callback': () => {
-            console.log('reCAPTCHA expired')
-            setError('reCAPTCHA expired. Please try again.')
-          }
-        })
-        window.recaptchaVerifier = verifier
-      }
-
-      // Send OTP
+  
+      // ✅ Step 2: Send OTP using Firebase
       const auth = getAuth(app)
-      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier)
+      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier!)
       window.confirmationResult = confirmationResult
-
-      // Store verification data
-      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
-      Cookies.set('genpod-signup-meta', JSON.stringify({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        provider: 'phone',
-        phone: fullPhone
-      }), { path: '/' })
+  
+      // ✅ Step 3: Store metadata and redirect
       Cookies.set('genpod-auth-intent', 'signup', { path: '/' })
-
-      // Redirect to OTP verification
+      Cookies.set('genpod-signup-meta', JSON.stringify({
+        username: trimmedUsername,
+        phone: fullPhone,
+        provider: 'firebase-otp',
+      }), { path: '/' })
+  
+      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
       router.push(`/verify-otp?phone=${encodeURIComponent(fullPhone)}`)
     } catch (err) {
       console.error('OTP sending failed:', err)
       setError('Failed to send OTP. Please try again.')
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
+      triggerShake()
     } finally {
       setLoading(false)
     }
+  }
+  
+  const triggerShake = () => {
+    setShake(true)
+    setTimeout(() => setShake(false), 500)
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -223,7 +181,7 @@ export default function SignupPage() {
     <div className="relative w-screen h-screen overflow-hidden bg-background text-text-primary">
       <div id="recaptcha-container" ref={recaptchaContainerRef} />
       <div className="absolute inset-0 z-0 animate-gradient" />
-      
+
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
         <motion.form
           onSubmit={handlePhoneSignup}
@@ -240,26 +198,14 @@ export default function SignupPage() {
           <p className="text-sm text-text-secondary text-center mb-5">Sign up using your phone number or social login</p>
 
           {error && (
-            <div className="text-error text-sm mb-4 text-center bg-error/10 p-3 rounded-md">
-              {error}
-            </div>
+            <div className="text-error text-sm mb-4 text-center bg-error/10 p-3 rounded-md">{error}</div>
           )}
 
           <input
             type="text"
-            placeholder="First name *"
-            value={formData.firstName}
-            onChange={(e) => handleInputChange('firstName', e.target.value)}
-            className="enterprise-input w-full mb-4"
-            disabled={loading}
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Last name *"
-            value={formData.lastName}
-            onChange={(e) => handleInputChange('lastName', e.target.value)}
+            placeholder="Username *"
+            value={formData.username}
+            onChange={(e) => handleInputChange('username', e.target.value.toLowerCase())}
             className="enterprise-input w-full mb-4"
             disabled={loading}
             required
@@ -267,6 +213,7 @@ export default function SignupPage() {
 
           <div className="flex mb-4 gap-2">
             <select
+              aria-label="Country code"
               value={formData.countryCode}
               onChange={(e) => handleInputChange('countryCode', e.target.value)}
               className="w-24 enterprise-input"
@@ -280,30 +227,22 @@ export default function SignupPage() {
             </select>
             <input
               type="tel"
-              placeholder="Phone number (optional)"
+              placeholder="Phone number *"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               className="flex-1 enterprise-input"
               disabled={loading}
+              required
             />
           </div>
 
-          <button
-            type="submit"
-            className="enterprise-button w-full"
-            disabled={loading || !formData.phone}
-          >
+          <button type="submit" className="enterprise-button w-full" disabled={loading}>
             {loading ? 'Sending OTP...' : 'Continue with Phone'}
           </button>
 
           <p className="text-xs text-center text-text-secondary mt-4">
             Already have an account?{' '}
-            <Link
-              href="/login"
-              className="text-xs text-text-primary hover:text-accent-primary underline-offset-2 hover:underline transition"
-            >
-              Log in
-            </Link>
+            <Link href="/login" className="text-xs text-text-primary hover:underline">Log in</Link>
           </p>
 
           <div className="flex items-center my-6">
@@ -313,25 +252,25 @@ export default function SignupPage() {
           </div>
 
           <div className="space-y-2">
-          {[
-            { id: 'google', label: 'Google', icon: 'google.svg' },
-            { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
-            { id: 'github', label: 'GitHub', icon: 'github.svg' },
-            { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
-            { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
-            { id: 'atlassian', label: 'Atlassian', icon: 'atlassian.svg' },
-          ].map(({ id, label, icon }) => (
-            <button
-              key={id}
-              onClick={() => handleSocialSignup(id)}
-              type="button"
+            {[
+              { id: 'google', label: 'Google', icon: 'google.svg' },
+              { id: 'azure-ad', label: 'Microsoft Account', icon: 'microsoft.svg' },
+              { id: 'github', label: 'GitHub', icon: 'github.svg' },
+              { id: 'gitlab', label: 'GitLab', icon: 'gitlab.svg' },
+              { id: 'linkedin', label: 'LinkedIn', icon: 'linkedin.svg' },
+              { id: 'atlassian', label: 'Atlassian', icon: 'atlassian.svg' },
+            ].map(({ id, label, icon }) => (
+              <button
+                key={id}
+                onClick={() => handleSocialSignup(id)}
+                type="button"
                 disabled={loading}
                 className="flex items-center gap-3 w-full text-sm font-medium text-white py-2.5 px-4 rounded-md border border-border bg-input hover:bg-surface-hover hover:scale-[1.01] hover:shadow-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Image src={`/icons/${icon}`} alt={label} width={18} height={18} />
-              Sign up with {label}
-            </button>
-          ))}
+              >
+                <Image src={`/icons/${icon}`} alt={label} width={18} height={18} />
+                Sign up with {label}
+              </button>
+            ))}
           </div>
         </motion.form>
       </div>

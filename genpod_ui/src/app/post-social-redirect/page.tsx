@@ -1,83 +1,65 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import Cookies from 'js-cookie'
-import Image from 'next/image'
+import { getSession } from 'next-auth/react'
 
 export default function PostSocialRedirect() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (status !== 'authenticated') return
-
     const registerSocialUser = async () => {
-      try {
-        // Read cookie safely in browser
-        const signupMeta = Cookies.get('genpod-signup-meta')
-
-        if (!signupMeta || !session?.user?.email) {
-          console.error('Missing signup meta or session')
-        router.push('/signup?error=meta_missing')
+      const session = await getSession()
+      if (!session?.user) {
+        router.replace('/login?error=session_expired')
         return
       }
 
-      const { firstName, lastName, provider } = JSON.parse(signupMeta)
+      const { name, email, provider } = session.user
 
-        // Register new user
-        const registerRes = await fetch('http://localhost:8000/api/users/register', {
+      // ✅ Generate a safe username from name or email
+      const username = name?.trim().toLowerCase().replace(/\s+/g, '_') || email?.split('@')[0]
+
+      try {
+        const res = await fetch('http://localhost:8000/api/users/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: session.user.email,
-            first_name: firstName,
-            last_name: lastName,
+            email,
+            username,
             provider,
           }),
         })
 
-        const result = await registerRes.json()
+        if (!res.ok) {
+          let errorQuery = 'registration_failed'
+          try {
+            const data = await res.json()
+            if (res.status === 409 && data?.message) {
+              errorQuery = `provider_mismatch&message=${encodeURIComponent(data.message)}`
+            }
+          } catch {
+            const fallback = await res.text()
+            console.error('⚠️ Registration failed:', fallback)
+          }
 
-        if (result.ok) {
-          // Clean up
-          Cookies.remove('genpod-signup-meta')
-          Cookies.remove('genpod-auth-intent')
-          router.push('/')
-        } else {
-          console.error('Registration failed:', result.message)
-          router.push('/signup?error=registration_failed')
+          router.replace(`/login?error=${errorQuery}`)
+          return
         }
-      } catch (err: unknown) {
-        console.error('Registration error:', err)
-        setError('An error occurred during registration. Please try again.')
-        setTimeout(() => router.push('/signup?error=network_error'), 2000)
+
+        router.replace('/')
+      } catch (err) {
+        console.error('❌ Registration error:', err)
+        router.replace('/login?error=network_error')
       }
     }
 
     registerSocialUser()
-  }, [session, status, router])
+  }, [router])
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-background">
-      <div className="w-full max-w-sm bg-surface p-8 rounded-xl shadow-lg border border-border text-center">
-        <div className="flex justify-center mb-6">
-          <Image src="/logo/Capten_logo_full.svg" alt="Capten Logo" width={120} height={40} />
-        </div>
-
-        {error ? (
-          <div className="text-error text-sm mb-4 text-center bg-error/10 p-3 rounded-md">
-            {error}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-            <p className="text-sm text-text-secondary">Setting up your account...</p>
-          </div>
-        )}
-      </div>
+    <div className="flex items-center justify-center h-screen text-text-primary">
+      <p>Processing your social login...</p>
     </div>
   )
 }

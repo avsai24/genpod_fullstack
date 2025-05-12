@@ -1,13 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import files, settings, prompt_routes, chat_stream, check_user
-from server.api import register 
+from .api import files, settings, prompt_routes, chat_stream, check_user, profile, register
 from .services.file_events import FileEventsService
+from .db.init_db import create_users_table_if_not_exists  
 import logging
 from pathlib import Path
-import os
 
-# # Configure logging
+# Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -16,84 +15,78 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Configure CORS
+# Enable CORS for frontend (adjust domain for production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]  # Required for SSE
+    expose_headers=["*"],  # For Server-Sent Events
 )
 
-# Get the project root directory
+# Determine project root (used by file watcher)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-# Initialize file events service
+# Initialize file watcher service
 file_events_service = FileEventsService(str(PROJECT_ROOT))
 
 @app.on_event("startup")
 async def startup_event():
-    """Startup event handler."""
+    """Handle app startup."""
     try:
-        # logger.info("🚀 Starting up application...")
-        # Start file watcher
+        create_users_table_if_not_exists() 
         file_events_service.start_watching()
-        # logger.info("✅ File watcher started")
+        logger.info("✅ File watcher started")
     except Exception as e:
-        logger.error(f"❌ Error during startup: {str(e)}", exc_info=True)
+        logger.error(f"❌ Startup error: {str(e)}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Shutdown event handler."""
+    """Handle app shutdown."""
     try:
-        # logger.info("🛑 Shutting down application...")
-        # Stop file watcher
         file_events_service.stop_watching()
-        # logger.info("✅ File watcher stopped")
+        logger.info("✅ File watcher stopped")
     except Exception as e:
-        logger.error(f"❌ Error during shutdown: {str(e)}", exc_info=True)
+        logger.error(f"❌ Shutdown error: {str(e)}", exc_info=True)
 
-# Include routers
+# Include all route groups with proper prefixes
 app.include_router(files.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(prompt_routes.router, prefix="/api")
-app.include_router(chat_stream.router, prefix="/api/chat")  
+app.include_router(chat_stream.router, prefix="/api/chat")
 app.include_router(check_user.router, prefix="/api")
 app.include_router(register.router, prefix="/api")
+app.include_router(profile.router, prefix="/api")
 
-# Add a health check endpointcle
+# Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-# Add a reload endpoint
+# Manual file watcher reload (optional)
 @app.post("/reload")
 async def reload():
-    """Trigger a reload of the application."""
+    """Reload file watcher manually."""
     try:
-        # logger.info("🔄 Reloading application...")
-        # Stop the file watcher
         file_events_service.stop_watching()
-        # Start it again
         file_events_service.start_watching()
-        # logger.info("✅ Application reloaded")
         return {"status": "reloaded"}
     except Exception as e:
-        # logger.error(f"❌ Error during reload: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
+# Root route
 @app.get("/")
 async def root():
     return {"message": "Genpod API Server"}
 
+# For standalone execution
 if __name__ == "__main__":
     import uvicorn
-    # Disable auto-reload and run the server
     uvicorn.run(
         "genpod_backend.server.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=False,  # Disable auto-reload
+        reload=False,
         log_level="debug"
-    ) 
+    )
