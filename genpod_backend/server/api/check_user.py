@@ -20,31 +20,25 @@ async def check_user(req: Request):
     conn = None
     try:
         data = await req.json()
-
         email = data.get("email", "").strip().lower()
-        phone = data.get("phone", "").strip()
         provider = data.get("provider", "").strip().lower()
 
-        if not provider:
+        if not email or not provider:
             return JSONResponse(
-                content={"ok": False, "message": "Missing provider"},
+                content={"ok": False, "message": "Missing email or provider"},
                 status_code=400
             )
 
-        auth_id = (phone or email or '').strip().lower()
-        if not auth_id:
-            return JSONResponse(
-                content={"ok": False, "message": "Missing phone or email"},
-                status_code=400
-            )
-
-        print("📨 [CHECK_USER] Received auth_id:", auth_id)
+        print("📨 [CHECK_USER] Received email:", email)
         print("🛠️ provider:", provider)
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT id, provider FROM users WHERE auth_id = ?", (auth_id,))
+        cursor.execute(
+            "SELECT user_id, user_provider, user_username FROM users WHERE user_email = ?",
+            (email,),
+        )
         row = cursor.fetchone()
         print("🔍 [CHECK_USER] DB result:", row)
 
@@ -60,13 +54,14 @@ async def check_user(req: Request):
                     status_code=200
                 )
             else:
+                # <-- Updated conflict message below
                 return JSONResponse(
                     content={
                         "ok": False,
                         "message": (
-                            f'You tried signing in as "{auth_id}" via {provider}, '
-                            f'but your account was originally created using "{stored_provider}". '
-                            "Please try again using the original provider."
+                            f'You tried logging in as "{email}" via {provider}, '
+                            "which is not the authentication method you used during signup. "
+                            "Please try again using the authentication method you used during signup."
                         )
                     },
                     status_code=409

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import files, settings, prompt_routes, chat_stream, check_user, profile, register
+from .api import files, register_user, settings, prompt_routes, chat_stream, check_user, profile
 from .services.file_events import FileEventsService
 from .db.init_db import create_users_table_if_not_exists  
 import logging
@@ -56,7 +56,7 @@ app.include_router(settings.router, prefix="/api")
 app.include_router(prompt_routes.router, prefix="/api")
 app.include_router(chat_stream.router, prefix="/api/chat")
 app.include_router(check_user.router, prefix="/api")
-app.include_router(register.router, prefix="/api")
+app.include_router(register_user.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 
 # Health check endpoint

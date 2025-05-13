@@ -6,10 +6,12 @@ import { getSession } from 'next-auth/react'
 
 export default function PostSocialRedirect() {
   const router = useRouter()
+  const api = process.env.NEXT_PUBLIC_API_URL!
 
   useEffect(() => {
     const registerSocialUser = async () => {
       const session = await getSession()
+
       if (!session?.user) {
         router.replace('/login?error=session_expired')
         return
@@ -17,11 +19,11 @@ export default function PostSocialRedirect() {
 
       const { name, email, provider } = session.user
 
-      // ✅ Generate a safe username from name or email
-      const username = name?.trim().toLowerCase().replace(/\s+/g, '_') || email?.split('@')[0]
+      // ✅ Generate a normalized username
+      const username = name?.trim().toLowerCase().replace(/\s+/g, '_') || email?.split('@')[0] || 'user'
 
       try {
-        const res = await fetch('http://localhost:8000/api/users/register', {
+        const res = await fetch(`${api}/api/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -36,7 +38,13 @@ export default function PostSocialRedirect() {
           try {
             const data = await res.json()
             if (res.status === 409 && data?.message) {
-              errorQuery = `provider_mismatch&message=${encodeURIComponent(data.message)}`
+              if (data.message.toLowerCase().includes('originally registered using')) {
+                errorQuery = `provider_mismatch&message=${encodeURIComponent(data.message)}`
+              } else if (data.message.toLowerCase().includes('already registered')) {
+                errorQuery = 'already_exists'
+              } else {
+                errorQuery = 'registration_failed'
+              }
             }
           } catch {
             const fallback = await res.text()
@@ -55,11 +63,11 @@ export default function PostSocialRedirect() {
     }
 
     registerSocialUser()
-  }, [router])
+  }, [router, api])
 
   return (
     <div className="flex items-center justify-center h-screen text-text-primary">
-      <p>Processing your social login...</p>
+      <p className="text-sm animate-pulse">Hang tight... finalizing your account ⏳</p>
     </div>
   )
 }

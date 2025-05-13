@@ -1,5 +1,4 @@
 import NextAuth from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import AzureADProvider from 'next-auth/providers/azure-ad'
 import GitHubProvider from 'next-auth/providers/github'
@@ -7,7 +6,7 @@ import GitLabProvider from 'next-auth/providers/gitlab'
 import LinkedInProvider from 'next-auth/providers/linkedin'
 import AtlassianProvider from 'next-auth/providers/atlassian'
 import type { NextAuthOptions, User } from 'next-auth'
-import type { DecodedIdToken } from 'firebase-admin/auth'
+import { headers } from 'next/headers'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -37,32 +36,6 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.ATLASSIAN_CLIENT_ID!,
       clientSecret: process.env.ATLASSIAN_CLIENT_SECRET!,
     }),
-    CredentialsProvider({
-      id: 'firebase-otp',
-      name: 'FirebasePhone',
-      credentials: {
-        token: { label: 'Firebase ID Token', type: 'text' },
-      },
-      async authorize(credentials): Promise<User | null> {
-        const token = credentials?.token
-        if (!token) return null
-        try {
-          const { getAuth } = await import('firebase-admin/auth')
-          const { firebaseAdminApp } = await import('@/lib/firebase-admin')
-          const decoded: DecodedIdToken = await getAuth(firebaseAdminApp).verifyIdToken(token)
-
-          return {
-            id: decoded.uid,
-            name: decoded.name || '',
-            email: decoded.email || '',
-            phone: decoded.phone_number || '',
-          }
-        } catch (err) {
-          console.error('❌ Firebase token verification failed:', err)
-          return null
-        }
-      },
-    }),
   ],
 
   pages: {
@@ -71,73 +44,77 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
-      const provider = account?.provider
-      const isPhone = provider === 'firebase-otp'
-      const email = user.email
-      const phone = (user as { phone?: string })?.phone
-    
-      console.log('[NextAuth signin] phone:', phone)
-      console.log('[NextAuth signin] provider:', provider)
-    
-      // ✅ Fixed: Robust cookie read (no crashing in edge context)
-      let intent: string | null = null
-      try {
-        const cookieHeader = (await headers()).get('cookie') || ''
-        intent = cookieHeader.match(/genpod-auth-intent=([^;]+)/)?.[1] || null
-      } catch {
-        intent = null
-      }
-    
-      if (!provider) return false
-    
-      try {
-        const body = isPhone ? { phone, provider } : { email, provider }
-    
-        const res = await fetch('http://localhost:8000/api/users/check', {
-          method: 'POST',
+        const provider = account?.provider
+        const email    = user.email?.toLowerCase()
+        if (!provider || !email) return false
+
+        let intent: string | null = null
+        try {
+          const cookieHeader = (await headers()).get('cookie') || ''
+          intent = cookieHeader.match(/genpod-auth-intent=([^;]+)/)?.[1] ?? null
+        } catch {
+          intent = null
+        }
+
+        // call your FastAPI /api/users/check
+        const res    = await fetch('http://localhost:8000/api/users/check', {
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body:    JSON.stringify({ email, provider }),
         })
-        console.log('[NextAuth signin] intent:', intent)
-    
         const result = await res.json()
+
+        console.log('[NextAuth signin] intent:', intent)
         console.log('[NextAuth signin] result:', result)
-    
-        if (intent === 'signup' && result.ok) {
-          throw new Error('/login?error=already_exists')
-        }
-    
-        if (intent !== 'signup' && !result.ok && result.message?.toLowerCase().includes('not found')) {
-          throw new Error('/signup?error=not_found')
-        }
-    
-        // ✅ CHANGED: match correct backend error message for provider mismatch
-        if (!result.ok && result.message?.toLowerCase().includes('originally created using')) {
+
+        // 409 = provider mismatch
+        if (res.status === 409) {
           const msg = encodeURIComponent(result.message)
-          return (`/login?error=provider_mismatch&message=${msg}`)
+          // redirect to your error page
+          return `/login?error=provider_mismatch&message=${msg}`
         }
-    
+
+        // trying to sign up but user already exists
+        if (intent === 'signup' && res.status === 200) {
+          return `/login?error=already_exists`
+        }
+
+        // trying to log in but user not found
+        if (intent !== 'signup' && res.status === 404) {
+          return `/signup?error=not_found`
+        }
+
+        // everything’s OK
         return true
-      } catch (err: any) {
-        if (typeof err.message === 'string' && err.message.startsWith('/')) {
-          return err.message
-        }
-        console.error('❌ signIn check failed:', err)
-        return '/login?error=server_error'
-      }
-    },
+      },
 
     async jwt({ token, user, account }) {
-      if (user) {
-        const u = user as User & {
-          phone?: string
-          provider?: string
+      if (account && user) {
+        const email = user.email?.toLowerCase()
+        const provider = account.provider
+
+        try {
+          const res = await fetch('http://localhost:8000/api/users/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, provider }),
+          })
+
+          const result = await res.json()
+
+          if (!result.ok && result.message?.toLowerCase().includes('originally created using')) {
+            console.warn('❌ Provider mismatch during JWT callback')
+            throw new Error('provider_mismatch') // ✅ Throw to stop token + session
+          }
+
+          token.id = user.id
+          token.name = user.name || ''
+          token.email = user.email || ''
+          token.provider = provider
+        } catch (err) {
+          console.error('JWT validation failed:', err)
+          throw new Error('provider_mismatch') // ✅ This will prevent session
         }
-        token.id = u.id
-        token.name = u.name || ''
-        token.email = u.email || ''
-        token.phone = u.phone || ''
-        token.provider = account?.provider
       }
       return token
     },
@@ -147,7 +124,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id
         session.user.name = token.name
         session.user.email = token.email
-        session.user.phone = token.phone
         session.user.provider = token.provider ?? ''
         delete (session.user as any).image
       }
