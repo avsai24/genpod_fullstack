@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import {
   MessageSquare,
   FolderKanban,
@@ -31,6 +31,10 @@ const profileOptions = [
 
 export default function Sidebar() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const username = session?.user?.username || ''
+  const initial = username.charAt(0).toUpperCase() || 'U'
+
   const setCurrentProject = useChatStore((s) => s.setCurrentProject)
 
   const isHovered = useSidebarStore((s) => s.isHovered)
@@ -112,7 +116,6 @@ export default function Sidebar() {
           isHovered={isHovered}
         />
 
-        {/* 🔥 Tasks Section */}
         <SidebarIcon
           icon={<Paperclip size={20} />}
           label="Tasks"
@@ -141,7 +144,7 @@ export default function Sidebar() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Profile Section */}
+        {/* Profile Section Dropdown */}
         {isHovered && isExpanded('profile') && (
           <div className="ml-4 mb-2 p-2 rounded-lg shadow-lg bg-[var(--surface)] border border-[var(--border)] space-y-2 animate-fade-in w-48">
             {profileOptions.map((opt) => (
@@ -157,15 +160,18 @@ export default function Sidebar() {
           </div>
         )}
 
+        {/* Profile Button */}
         <div
           className="flex items-center w-full px-4 mb-2 cursor-pointer hover:bg-[var(--surface-hover)] rounded transition-colors duration-200 py-3"
           onClick={() => toggleExpandedItem('profile')}
         >
           <div className="w-8 h-8 rounded-full bg-[var(--accent-secondary)] text-white flex items-center justify-center text-xs font-bold">
-            A
+            {initial}
           </div>
           {isHovered && (
-            <span className="ml-3 text-[var(--text-secondary)] text-sm">Profile</span>
+            <span className="ml-3 text-[var(--text-secondary)] text-sm">
+              {username || 'Profile'}
+            </span>
           )}
         </div>
       </div>

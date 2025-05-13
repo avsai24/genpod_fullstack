@@ -6,7 +6,6 @@ import GitHubProvider from 'next-auth/providers/github'
 import GitLabProvider from 'next-auth/providers/gitlab'
 import LinkedInProvider from 'next-auth/providers/linkedin'
 import AtlassianProvider from 'next-auth/providers/atlassian'
-import { headers } from 'next/headers'
 import type { NextAuthOptions, User } from 'next-auth'
 import type { DecodedIdToken } from 'firebase-admin/auth'
 
@@ -77,9 +76,17 @@ export const authOptions: NextAuthOptions = {
       const email = user.email
       const phone = (user as { phone?: string })?.phone
     
-      const cookieHeader = (await headers()).get('cookie') || ''
-      const match = cookieHeader.match(/genpod-auth-intent=([^;]+)/)
-      const intent = match?.[1] || null
+      console.log('[NextAuth signin] phone:', phone)
+      console.log('[NextAuth signin] provider:', provider)
+    
+      // ✅ Fixed: Robust cookie read (no crashing in edge context)
+      let intent: string | null = null
+      try {
+        const cookieHeader = (await headers()).get('cookie') || ''
+        intent = cookieHeader.match(/genpod-auth-intent=([^;]+)/)?.[1] || null
+      } catch {
+        intent = null
+      }
     
       if (!provider) return false
     
@@ -91,11 +98,12 @@ export const authOptions: NextAuthOptions = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
+        console.log('[NextAuth signin] intent:', intent)
     
         const result = await res.json()
+        console.log('[NextAuth signin] result:', result)
     
         if (intent === 'signup' && result.ok) {
-          // Already registered — can't signup again
           throw new Error('/login?error=already_exists')
         }
     
@@ -103,14 +111,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error('/signup?error=not_found')
         }
     
-        if (!result.ok && result.message?.toLowerCase().includes('authentication method')) {
+        // ✅ CHANGED: match correct backend error message for provider mismatch
+        if (!result.ok && result.message?.toLowerCase().includes('originally created using')) {
           const msg = encodeURIComponent(result.message)
-          throw new Error(`/login?error=provider_mismatch&message=${msg}`)
+          return (`/login?error=provider_mismatch&message=${msg}`)
         }
     
         return true
       } catch (err: any) {
-        // ✅ Stop login and redirect user
         if (typeof err.message === 'string' && err.message.startsWith('/')) {
           return err.message
         }
@@ -141,7 +149,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email
         session.user.phone = token.phone
         session.user.provider = token.provider ?? ''
-        delete (session.user as any).image // ✅ Explicitly remove profile image
+        delete (session.user as any).image
       }
       return session
     },

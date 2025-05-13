@@ -10,19 +10,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (session) {
-      // ✅ This will log for BOTH username and Google login
-      console.log('🧠 Session in AuthGuard:', session)
+    if (status === 'loading') return
+
+    // 🚫 If not authenticated, redirect to login (but avoid loop)
+    if (status === 'unauthenticated' && pathname !== '/login') {
+      router.replace('/login')
+      return
     }
 
-    if (status === 'loading') return
-    if (!session && pathname !== '/login') {
-      router.push('/login')
+    // ✅ Log authenticated user details
+    if (status === 'authenticated') {
+      console.log('🧠 Full Session in AuthGuard:', session)
+      console.log('🧠 User info:', session?.user)
+      if (!session?.user?.id || !session?.user?.provider) {
+        console.warn('⚠️ Session is authenticated but missing user.id or provider')
+      }
     }
-  }, [session, status, pathname])
+  }, [status, pathname, session, router])
 
   if (status === 'loading') {
-    return <div className="text-center text-white">Loading...</div>
+    return <div className="text-center text-white">Loading session...</div>
   }
 
   return <>{children}</>

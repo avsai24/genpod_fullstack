@@ -1,3 +1,4 @@
+// app/verify-otp/page.tsx
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -5,7 +6,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { signIn } from 'next-auth/react'
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import {
+  getAuth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from 'firebase/auth'
 import { app } from '@/lib/firebase'
 import Cookies from 'js-cookie'
 
@@ -19,180 +24,173 @@ declare global {
 export default function VerifyOtpPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null)
+  const recaptchaRef = useRef<HTMLDivElement>(null)
+
   const [otp, setOtp] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
   const [phone, setPhone] = useState('')
 
-  useEffect(() => {
-    const storedVerificationId = sessionStorage.getItem('verificationId')
-    const phoneParam = searchParams.get('phone')
+  //  📡 make sure you have this in .env.local:
+  // NEXT_PUBLIC_API_URL=http://localhost:8000
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-    if (!storedVerificationId || !phoneParam) {
-      router.push('/login')
+  // 1️⃣ grab the verificationId & phone, init invisible reCAPTCHA
+  useEffect(() => {
+    const vid = sessionStorage.getItem('verificationId')
+    const p = searchParams.get('phone')
+    if (!vid || !p) {
+      router.replace('/login')
       return
     }
+    setPhone(p)
 
-    setPhone(phoneParam)
-
-    let interval: NodeJS.Timeout | null = null
-
-    const setupRecaptcha = () => {
-      if (typeof window === 'undefined' || window.recaptchaVerifier) return
-      const auth = getAuth(app)
-      try {
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => console.log('reCAPTCHA solved'),
-          'expired-callback': () => setError('reCAPTCHA expired. Please try again.')
-        })
-        window.recaptchaVerifier = verifier
-      } catch (err) {
-        console.error('reCAPTCHA setup failed:', err)
-        setError('Failed to initialize security check. Please refresh the page.')
-      }
+    const auth = getAuth(app)
+    if (!window.recaptchaVerifier && recaptchaRef.current) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => console.log('✔️ reCAPTCHA solved'),
+        'expired-callback': () => {
+          setError('reCAPTCHA expired. Please try again.')
+        },
+      })
     }
-
-    interval = setInterval(() => {
-      setupRecaptcha()
-      if (window.recaptchaVerifier && interval) clearInterval(interval)
-    }, 100)
 
     return () => {
-      if (interval) clearInterval(interval)
       window.recaptchaVerifier?.clear()
-      delete window.recaptchaVerifier
     }
   }, [router, searchParams])
-
-  const validateOtp = (otp: string) => {
-    if (!otp || !/^\d{6}$/.test(otp)) {
-      setError('Please enter a valid 6-digit OTP')
-      return false
-    }
-    return true
-  }
-
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validateOtp(otp)) {
-      triggerShake()
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      const credential = await window.confirmationResult.confirm(otp)
-      const user = credential.user
-
-      const intent = Cookies.get('genpod-auth-intent') // 'signup' or 'login'
-      const signupMeta = Cookies.get('genpod-signup-meta')
-      const checkRes = await fetch('http://localhost:8000/api/users/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, provider: 'firebase-otp' }),
-      })
-
-      if (checkRes.status === 404) {
-        if (intent === 'signup' && signupMeta) {
-          let meta
-          try {
-            meta = JSON.parse(signupMeta)
-          } catch (err) {
-            console.error('Invalid signupMeta:', signupMeta)
-            setError('Signup session expired. Please try again.')
-            return
-          }
-
-          const registerRes = await fetch('http://localhost:8000/api/users/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username: meta.username,
-              phone,
-              provider: 'firebase-otp',
-              firebaseUid: user.uid,
-            }),
-          })
-
-          if (!registerRes.ok) {
-            const errText = await registerRes.text()
-            throw new Error('Registration failed: ' + errText)
-          }
-        } else {
-          throw new Error('No account found. Please sign up first.')
-        }
-      }
-
-      const idToken = await user.getIdToken()
-
-      const result = await signIn('firebase-otp', {
-        token: idToken,
-        redirect: false,
-        callbackUrl: typeof window !== 'undefined' ? `${window.location.origin}/` : '/',
-      })
-
-      if (result?.error) throw new Error(result.error)
-
-      // ✅ Clean up
-      sessionStorage.removeItem('verificationId')
-      Cookies.remove('genpod-signup-meta')
-      Cookies.remove('genpod-auth-intent')
-
-      router.push('/')
-    } catch (err) {
-      console.error('Verification failed:', err)
-      setError(err instanceof Error ? err.message : 'OTP verification failed. Try again.')
-      triggerShake()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleResend = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      const auth = getAuth(app)
-      const confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier!)
-      window.confirmationResult = confirmationResult
-      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
-      setError('New OTP sent successfully!')
-    } catch (err) {
-      console.error('Resend failed:', err)
-      setError('Failed to resend OTP. Please try again.')
-      triggerShake()
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const triggerShake = () => {
     setShake(true)
     setTimeout(() => setShake(false), 500)
   }
 
+  const validateOtp = (v: string) => /^\d{6}$/.test(v)
+
+  // 2️⃣ Verify OTP → check/register → NextAuth signIn → full reload
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateOtp(otp)) {
+      setError('Enter a valid 6-digit code')
+      return triggerShake()
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      // 🔐 confirm with Firebase
+      const cred = await window.confirmationResult.confirm(otp)
+      const user = cred.user
+
+      const intent = Cookies.get('genpod-auth-intent')    // "signup" or "login"
+      const signupMeta = Cookies.get('genpod-signup-meta') // only on signup
+
+      // ─── STEP 1: CHECK (and REGISTER if 404 + signup) ───────────────
+      const checkUrl = `${API_URL}/api/users/check`
+      console.log('POST →', checkUrl)
+      const checkRes = await fetch(checkUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, provider: 'firebase-otp' }),
+      })
+
+      if (checkRes.status === 404) {
+        // new user: register
+        if (intent === 'signup' && signupMeta) {
+          const { username } = JSON.parse(signupMeta)
+          const regRes = await fetch(`${API_URL}/api/users/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, phone, provider: 'firebase-otp' }),
+          })
+          if (!regRes.ok) {
+            const txt = await regRes.text()
+            throw new Error('Registration failed: ' + txt)
+          }
+        } else {
+          throw new Error('No account found. Please sign up first.')
+        }
+      }
+
+      // ─── STEP 2: NextAuth signIn (JWT, no redirect) ───────────────
+      const idToken = await user.getIdToken()
+      const callbackUrl = window.location.origin
+      console.log('Using callbackUrl:', callbackUrl)
+      const result = await signIn('firebase-otp', {
+        token: idToken,
+        redirect: false,
+        callbackUrl,
+      })
+      if (result?.error) throw new Error(result.error)
+
+      // ─── CLEANUP ──────────────────────────────────────────────
+      sessionStorage.removeItem('verificationId')
+      Cookies.remove('genpod-auth-intent')
+      Cookies.remove('genpod-signup-meta')
+
+      // ─── FULL RELOAD so the auth cookie gets read ───────────────
+      window.location.href = result.url ?? callbackUrl
+    } catch (err: any) {
+      console.error('Verification failed:', err)
+      setError(err.message || 'OTP verification failed')
+      triggerShake()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 3️⃣ “Resend code” button
+  const handleResend = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const auth = getAuth(app)
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        phone,
+        window.recaptchaVerifier!
+      )
+      window.confirmationResult = confirmationResult
+      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
+      setError('New OTP sent!')
+    } catch (err) {
+      console.error('Resend failed:', err)
+      setError('Failed to resend. Try again.')
+      triggerShake()
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-text-primary">
-      <div id="recaptcha-container" ref={recaptchaContainerRef} />
+      <div id="recaptcha-container" ref={recaptchaRef} />
       <div className="absolute inset-0 z-0 animate-gradient" />
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4">
         <motion.form
           onSubmit={handleVerify}
-          className={`w-full max-w-sm bg-surface border border-border rounded-xl shadow-xl p-8 ${shake ? 'animate-shake' : ''}`}
+          className={`w-full max-w-sm bg-surface border border-border rounded-xl shadow-xl p-8 ${
+            shake ? 'animate-shake' : ''
+          }`}
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
+          {/* — your logo, copy, error box, input + buttons here — */}
           <div className="flex justify-center mb-6">
-            <Image src="/logo/Capten_logo_full.svg" alt="Capten Logo" width={120} height={40} />
+            <Image
+              src="/logo/Capten_logo_full.svg"
+              alt="Capten Logo"
+              width={120}
+              height={40}
+            />
           </div>
-
-          <h2 className="text-2xl font-bold text-center mb-1">Verify your phone</h2>
+          <h2 className="text-2xl font-bold text-center mb-1">
+            Verify your phone
+          </h2>
           <p className="text-sm text-text-secondary text-center mb-5">
             Enter the 6-digit code sent to {phone}
           </p>
@@ -205,7 +203,7 @@ export default function VerifyOtpPage() {
 
           <input
             type="text"
-            placeholder="Enter 6-digit OTP"
+            placeholder="123456"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
             className="enterprise-input w-full mb-4 text-center text-2xl tracking-widest"
@@ -215,16 +213,16 @@ export default function VerifyOtpPage() {
           />
 
           <button type="submit" className="enterprise-button w-full" disabled={loading}>
-            {loading ? 'Verifying...' : 'Verify OTP'}
+            {loading ? 'Verifying…' : 'Verify OTP'}
           </button>
 
           <button
             type="button"
             onClick={handleResend}
             disabled={loading}
-            className="w-full mt-4 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            className="w-full mt-4 text-sm text-text-secondary hover:text-text-primary"
           >
-            Didn&apos;t receive the code? Resend
+            Didn’t receive the code? Resend
           </button>
         </motion.form>
       </div>

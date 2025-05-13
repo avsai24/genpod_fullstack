@@ -11,7 +11,7 @@ router = APIRouter()
 
 DB_PATH = os.getenv("DB_PATH")
 if not DB_PATH:
-    raise RuntimeError("DB_PATH not set in .env")
+    raise RuntimeError("❌ DB_PATH not set in .env")
 
 def get_db_connection():
     return sqlite3.connect(DB_PATH)
@@ -35,16 +35,25 @@ async def register_user(req: Request):
         if not is_valid:
             return JSONResponse(content={"ok": False, "message": error_message}, status_code=400)
 
-        provider = data["provider"]
+        provider = data["provider"].strip().lower()
         username = data["username"].strip().lower()
-        auth_id = data.get("phone") or data.get("email")
+        phone = data.get("phone", "").strip()
+        email = data.get("email", "").strip().lower()
+        auth_id = phone or email
+
+        if not auth_id:
+            return JSONResponse(
+                content={"ok": False, "message": "Missing phone or email"},
+                status_code=400
+            )
+
         user_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Create table if not exists
+        # Ensure users table exists
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
@@ -55,27 +64,28 @@ async def register_user(req: Request):
             );
         """)
 
-        # Check if user with same auth_id exists
+        # Check for existing user
         cursor.execute("SELECT provider FROM users WHERE auth_id = ?", (auth_id,))
         row = cursor.fetchone()
-        if row:
-            existing_provider = row[0].lower()
 
-            # ✅ Only apply provider mismatch error for email-based users
-            if data.get("email") and existing_provider != provider:
+        if row:
+            existing_provider = row[0].strip().lower()
+            readable_id = "Phone number" if provider == "firebase-otp" else "Email"
+
+            # If provider mismatch (mostly applies to email users)
+            if email and existing_provider != provider:
                 return JSONResponse(
                     content={
                         "ok": False,
                         "message": (
-                            f'You tried signing in as "{auth_id}" via {provider}, which is not the authentication method you used during signup. '
-                            "Try again using the authentication method you used during signup."
+                            f'You tried signing in as "{auth_id}" via {provider}, but your account was originally created using "{existing_provider}". '
+                            "Please try again using the method you originally signed up with."
                         )
                     },
                     status_code=409
                 )
 
-            # Same provider — still block duplicate registration
-            readable_id = "Phone number" if provider == "firebase-otp" else "Email"
+            # Duplicate registration
             return JSONResponse(
                 content={"ok": False, "message": f"{readable_id} already registered"},
                 status_code=409
@@ -89,7 +99,8 @@ async def register_user(req: Request):
         conn.commit()
 
         return JSONResponse(
-            content={"ok": True, "message": "User registered", "user_id": user_id}
+            content={"ok": True, "message": "User registered", "user_id": user_id},
+            status_code=201
         )
 
     except Exception as e:

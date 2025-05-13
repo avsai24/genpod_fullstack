@@ -1,11 +1,14 @@
 // src/app/page.tsx
+import AuthGuard from '@/components/auth/AuthGuard'
 import PromptLayout from '@/components/layouts/PromptLayout'
 import PromptView from '@/components/main_page/PromptView'
 
 export default function Home() {
   return (
-    <PromptLayout>
-      <PromptView />
-    </PromptLayout>
+    <AuthGuard>
+      <PromptLayout>
+        <PromptView />
+      </PromptLayout>
+    </AuthGuard>
   )
 }

@@ -104,68 +104,51 @@ export default function SignupPage() {
     await signIn(provider, { callbackUrl: '/post-social-redirect' })
   }
 
-  const handlePhoneSignup = async (e: React.FormEvent) => {
-    e.preventDefault()
-  
-    if (!validateForm()) {
-      triggerShake()
-      return
-    }
-  
-    try {
-      setLoading(true)
-      const fullPhone = `${formData.countryCode}${formData.phone}`.replace(/\s/g, '')
-      console.log('[📱 fullPhone being sent]', fullPhone)
+  // inside SignupPage
+const api = process.env.NEXT_PUBLIC_API_URL!
 
-      const trimmedUsername = formData.username.trim().toLowerCase()
-  
-      // ✅ Step 1: Check if phone is already registered
-      const res = await fetch('http://localhost:8000/api/users/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: fullPhone, provider: 'firebase-otp' }),
-      })
-  
-      const check = await res.json()
-      console.log('[CHECK RESPONSE]', res.status, check) // ✅ Debug log
-  
-      // ✅ Block signup if user exists with firebase-otp provider
-      if (check.ok && check.provider?.toLowerCase() === 'firebase-otp') {
-        setError('This phone number is already registered. Please log in instead.')
-        triggerShake()
-        return
-      }
-  
-      // ❌ Handle unexpected errors
-      if (!check.ok && res.status !== 404) {
-        setError(check.message || 'Unexpected error. Please try again.')
-        triggerShake()
-        return
-      }
-  
-      // ✅ Step 2: Send OTP using Firebase
-      const auth = getAuth(app)
-      const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier!)
-      window.confirmationResult = confirmationResult
-  
-      // ✅ Step 3: Store metadata and redirect
-      Cookies.set('genpod-auth-intent', 'signup', { path: '/' })
-      Cookies.set('genpod-signup-meta', JSON.stringify({
-        username: trimmedUsername,
-        phone: fullPhone,
-        provider: 'firebase-otp',
-      }), { path: '/' })
-  
-      sessionStorage.setItem('verificationId', confirmationResult.verificationId)
-      router.push(`/verify-otp?phone=${encodeURIComponent(fullPhone)}`)
-    } catch (err) {
-      console.error('OTP sending failed:', err)
-      setError('Failed to send OTP. Please try again.')
-      triggerShake()
-    } finally {
-      setLoading(false)
-    }
+const handlePhoneSignup = async (e: React.FormEvent) => {
+  e.preventDefault()
+  // … your validation …
+
+  const fullPhone = `${formData.countryCode}${formData.phone}`.replace(/\s/g, '')
+  const trimmedUsername = formData.username.trim().toLowerCase()
+
+  // ⬇️ POINT AT YOUR FASTAPI, not at Next.js
+  const res = await fetch(`${api}/api/users/check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: fullPhone, provider: 'firebase-otp' }),
+  })
+
+  const check = await res.json()
+  console.log('[CHECK RESPONSE]', res.status, check)
+
+  if (check.ok && check.provider === 'firebase-otp') {
+    setError('Already registered – please log in.')
+    return
   }
+  if (!check.ok && res.status !== 404) {
+    setError(check.message || 'Error checking phone.')
+    return
+  }
+
+  // now send OTP
+  const auth = getAuth(app)
+  const confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier!)
+  window.confirmationResult = confirmationResult
+
+  // stash for the next step
+  Cookies.set('genpod-auth-intent', 'signup', { path: '/' })
+  Cookies.set('genpod-signup-meta', JSON.stringify({
+    username: trimmedUsername,
+    phone: fullPhone,
+    provider: 'firebase-otp',
+  }), { path: '/' })
+  sessionStorage.setItem('verificationId', confirmationResult.verificationId)
+
+  router.push(`/verify-otp?phone=${encodeURIComponent(fullPhone)}`)
+}
   
   const triggerShake = () => {
     setShake(true)

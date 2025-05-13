@@ -9,6 +9,9 @@ load_dotenv()
 router = APIRouter()
 DB_PATH = os.getenv("DB_PATH")
 
+if not DB_PATH:
+    raise RuntimeError("❌ DB_PATH is not set in .env")
+
 def get_db_connection():
     return sqlite3.connect(DB_PATH)
 
@@ -17,9 +20,10 @@ async def check_user(req: Request):
     conn = None
     try:
         data = await req.json()
-        email = data.get("email")
-        phone = data.get("phone")
-        provider = data.get("provider", "").lower()
+
+        email = data.get("email", "").strip().lower()
+        phone = data.get("phone", "").strip()
+        provider = data.get("provider", "").strip().lower()
 
         if not provider:
             return JSONResponse(
@@ -27,50 +31,47 @@ async def check_user(req: Request):
                 status_code=400
             )
 
-        auth_id = phone or email
-        print("📨 [BACKEND] Received auth_id:", auth_id)
-
+        auth_id = (phone or email or '').strip().lower()
         if not auth_id:
             return JSONResponse(
                 content={"ok": False, "message": "Missing phone or email"},
                 status_code=400
             )
 
+        print("📨 [CHECK_USER] Received auth_id:", auth_id)
+        print("🛠️ provider:", provider)
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute("SELECT id, provider FROM users WHERE auth_id = ?", (auth_id,))
-        existing = cursor.fetchone()
-        print("🔍 [BACKEND] Query result:", existing)
+        row = cursor.fetchone()
+        print("🔍 [CHECK_USER] DB result:", row)
 
-        if existing:
-            stored_provider = existing[1].lower()
-
-            # ✅ If provider matches, return 200 with ok: True
+        if row:
+            stored_provider = row[1].strip().lower()
             if stored_provider == provider:
                 return JSONResponse(
                     content={
                         "ok": True,
                         "message": "User found",
-                        "provider": stored_provider
+                        "provider": stored_provider,
                     },
                     status_code=200
                 )
+            else:
+                return JSONResponse(
+                    content={
+                        "ok": False,
+                        "message": (
+                            f'You tried signing in as "{auth_id}" via {provider}, '
+                            f'but your account was originally created using "{stored_provider}". '
+                            "Please try again using the original provider."
+                        )
+                    },
+                    status_code=409
+                )
 
-            # ❌ Provider mismatch
-            return JSONResponse(
-                content={
-                    "ok": False,
-                    "message": (
-                        f'You tried signing in as "{auth_id}" via {provider}, '
-                        "which is not the authentication method you used during signup. "
-                        "Please try again using the method you originally used."
-                    )
-                },
-                status_code=409
-            )
-
-        # ❌ No user found
         return JSONResponse(
             content={"ok": False, "message": "User not found"},
             status_code=404
