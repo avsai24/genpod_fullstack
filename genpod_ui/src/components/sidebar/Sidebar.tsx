@@ -91,7 +91,7 @@ export default function Sidebar() {
               }}
               className={`text-lg transition ${
                 isExpanded('projects') && isHovered
-                  ? 'text-[var(--text-secondary)] hover:text-[var(--accent-secondary)] opacity-100'
+                  ? 'text-[var(--text-primary)] hover:text-[var(--background)] opacity-100'
                   : 'opacity-0 pointer-events-none'
               }`}
             >

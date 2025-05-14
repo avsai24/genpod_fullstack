@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .api.projects import create_project, list_projects
+from .api.projects import create_project, list_projects, rename_project, delete_project
 
 from .api.authentication import check_user, register_user
 from .api import files, settings, prompt_routes, chat_stream, profile
@@ -64,6 +64,8 @@ app.include_router(register_user.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(create_project.router, prefix="/api") 
 app.include_router(list_projects.router, prefix="/api")
+app.include_router(rename_project.router, prefix="/api") 
+app.include_router(delete_project.router, prefix="/api")
 
 # Health check endpoint
 @app.get("/health")

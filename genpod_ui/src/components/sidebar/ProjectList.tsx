@@ -28,7 +28,7 @@ export default function ProjectList({
   const scrollRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
   const pathname = usePathname()
-  const lastScrollY = useRef(0)
+  
 
   // Fetch projects
   useEffect(() => {

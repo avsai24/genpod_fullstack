@@ -1,15 +1,19 @@
+'use client'
+
+import { use } from 'react'
 import ProjectClient from './ProjectClient'
+import AuthGuard from '@/components/auth/AuthGuard'
 
 interface Props {
-  params: { project: string }
+  params: Promise<{ project: string }>
 }
 
-export default async function ProjectPage({ params }: Props) {
-  const { project } = await params;
+export default function ProjectPage({ params }: Props) {
+  const { project } = use(params) // ✅ unwrap the Promise safely
 
   return (
-    <div>
+    <AuthGuard>
       <ProjectClient project={project} />
-    </div>
+    </AuthGuard>
   )
 }

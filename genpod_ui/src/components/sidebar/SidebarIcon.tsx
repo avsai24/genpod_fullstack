@@ -30,7 +30,7 @@ export default function SidebarIcon({
       <div className="flex items-center gap-3 text-[var(--text-primary)]">
         {icon}
         {isHovered && (
-          <span className="text-sm text-[var(--text-secondary)] whitespace-nowrap">
+          <span className="text-sm text-[var(--text-primary)] whitespace-nowrap">
             {label}
           </span>
         )}
