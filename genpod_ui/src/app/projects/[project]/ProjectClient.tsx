@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useChatStore } from '@/state/chatStore'
-import Sidebar from '@/components/layouts/Sidebar'
+import Sidebar from '@/components/sidebar/Sidebar'
 import { Paperclip, Mic, Send, ChevronRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -37,7 +37,9 @@ export default function ProjectClient({ project }: { project: string }) {
       <div className="flex-1 flex flex-col px-8 py-10 overflow-y-auto">
         <div className="flex flex-col items-start mt-24 w-full max-w-2xl mx-auto">
           {/* Project Name */}
-          <h2 className="text-xl font-medium text-muted-foreground mb-4 self-start">{project}</h2>
+          <h2 className="text-xl font-medium text-muted-foreground mb-4 self-start">
+            {decodeURIComponent(project)}
+          </h2>
 
           {/* Prompt Input */}
           <form

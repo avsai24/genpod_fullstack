@@ -8,7 +8,6 @@ load_dotenv()
 
 router = APIRouter()
 DB_PATH = os.getenv("DB_PATH")
-
 if not DB_PATH:
     raise RuntimeError("❌ DB_PATH is not set in .env")
 
@@ -19,22 +18,20 @@ def get_db_connection():
 async def check_user(req: Request):
     conn = None
     try:
-        data = await req.json()
-        email = data.get("email", "").strip().lower()
+        data     = await req.json()
+        email    = data.get("email", "").strip().lower()
         provider = data.get("provider", "").strip().lower()
-
         if not email or not provider:
             return JSONResponse(
-                content={"ok": False, "message": "Missing email or provider"},
+                {"ok": False, "message": "Missing email or provider"},
                 status_code=400
             )
 
         print("📨 [CHECK_USER] Received email:", email)
         print("🛠️ provider:", provider)
 
-        conn = get_db_connection()
+        conn   = get_db_connection()
         cursor = conn.cursor()
-
         cursor.execute(
             "SELECT user_id, user_provider, user_username FROM users WHERE user_email = ?",
             (email,),
@@ -43,40 +40,45 @@ async def check_user(req: Request):
         print("🔍 [CHECK_USER] DB result:", row)
 
         if row:
-            stored_provider = row[1].strip().lower()
+            db_id, stored_provider, db_username = row
+            stored_provider = stored_provider.strip().lower()
+
+            # ✅ exact‐match → return your own DB fields
             if stored_provider == provider:
                 return JSONResponse(
-                    content={
+                    {
                         "ok": True,
                         "message": "User found",
+                        "user_id": db_id,
+                        "username": db_username,
                         "provider": stored_provider,
                     },
                     status_code=200
                 )
-            else:
-                # <-- Updated conflict message below
-                return JSONResponse(
-                    content={
-                        "ok": False,
-                        "message": (
-                            f'You tried logging in as "{email}" via {provider}, '
-                            "which is not the authentication method you used during signup. "
-                            "Please try again using the authentication method you used during signup."
-                        )
-                    },
-                    status_code=409
-                )
 
+            # ❌ conflict → your custom message
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "message": (
+                        f'You tried logging in as "{email}" via {provider}, '
+                        "which is not the authentication method you used during signup. "
+                        "Please try again using the authentication method you used during signup."
+                    )
+                },
+                status_code=409
+            )
+
+        # 🚫 not in DB
         return JSONResponse(
-            content={"ok": False, "message": "User not found"},
+            {"ok": False, "message": "User not found"},
             status_code=404
         )
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         return JSONResponse(
-            content={"ok": False, "message": f"Internal server error: {str(e)}"},
+            {"ok": False, "message": f"Internal server error: {str(e)}"},
             status_code=500
         )
     finally:

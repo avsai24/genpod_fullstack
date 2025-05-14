@@ -1,6 +1,6 @@
 'use client'
 
-import Sidebar from '@/components/layouts/Sidebar'
+import Sidebar from '@/components/sidebar/Sidebar'
 import { ReactNode } from 'react'
 
 export default function PromptLayout({ children }: { children: ReactNode }) {

@@ -43,88 +43,92 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
+    // Called after the OAuth provider returns
     async signIn({ user, account }) {
-        const provider = account?.provider
-        const email    = user.email?.toLowerCase()
-        if (!provider || !email) return false
+      const provider = account?.provider
+      const email    = user.email?.toLowerCase()
+      if (!provider || !email) return false
 
-        let intent: string | null = null
-        try {
-          const cookieHeader = (await headers()).get('cookie') || ''
-          intent = cookieHeader.match(/genpod-auth-intent=([^;]+)/)?.[1] ?? null
-        } catch {
-          intent = null
-        }
+      // read signup/login intent from cookie
+      let intent: string | null = null
+      try {
+        const cookieHeader = (await headers()).get('cookie') || ''
+        intent = cookieHeader.match(/genpod-auth-intent=([^;]+)/)?.[1] ?? null
+      } catch {
+        intent = null
+      }
 
-        // call your FastAPI /api/users/check
-        const res    = await fetch('http://localhost:8000/api/users/check', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ email, provider }),
-        })
-        const result = await res.json()
+      // check against your FastAPI /api/users/check
+      const res    = await fetch('http://localhost:8000/api/users/check', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, provider }),
+      })
+      const result = await res.json()
 
-        console.log('[NextAuth signin] intent:', intent)
-        console.log('[NextAuth signin] result:', result)
+      console.log('[NextAuth signin] intent:', intent)
+      console.log('[NextAuth signin] result:', result)
 
-        // 409 = provider mismatch
-        if (res.status === 409) {
-          const msg = encodeURIComponent(result.message)
-          // redirect to your error page
-          return `/login?error=provider_mismatch&message=${msg}`
-        }
+      // 409 → provider mismatch
+      if (res.status === 409) {
+        const msg = encodeURIComponent(result.message)
+        return `/login?error=provider_mismatch&message=${msg}`
+      }
 
-        // trying to sign up but user already exists
-        if (intent === 'signup' && res.status === 200) {
-          return `/login?error=already_exists`
-        }
+      // signup flow but user already exists
+      if (intent === 'signup' && res.status === 200) {
+        return `/login?error=already_exists`
+      }
 
-        // trying to log in but user not found
-        if (intent !== 'signup' && res.status === 404) {
-          return `/signup?error=not_found`
-        }
+      // login flow but user not found
+      if (intent !== 'signup' && res.status === 404) {
+        return `/signup?error=not_found`
+      }
 
-        // everything’s OK
-        return true
-      },
+      // all good
+      return true
+    },
 
+    // Attach info into the JWT
     async jwt({ token, user, account }) {
       if (account && user) {
-        const email = user.email?.toLowerCase()
+        const email    = user.email?.toLowerCase()
         const provider = account.provider
 
         try {
-          const res = await fetch('http://localhost:8000/api/users/check', {
-            method: 'POST',
+          const res    = await fetch('http://localhost:8000/api/users/check', {
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, provider }),
+            body:    JSON.stringify({ email, provider }),
           })
-
           const result = await res.json()
+          console.log('[NextAuth jwt] result:', result)
 
-          if (!result.ok && result.message?.toLowerCase().includes('originally created using')) {
+          if (res.status === 409) {
             console.warn('❌ Provider mismatch during JWT callback')
-            throw new Error('provider_mismatch') // ✅ Throw to stop token + session
+            throw new Error('provider_mismatch')
           }
 
-          token.id = user.id
-          token.name = user.name || ''
-          token.email = user.email || ''
-          token.provider = provider
+          token.id       = result.user_id
+          token.name     = result.username
+          token.email    = result.email       
+          token.provider = result.provider
         } catch (err) {
           console.error('JWT validation failed:', err)
-          throw new Error('provider_mismatch') // ✅ This will prevent session
+          throw new Error('provider_mismatch')
         }
       }
       return token
     },
 
+    // Expose only your four DB-backed fields in the session
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id
-        session.user.name = token.name
-        session.user.email = token.email
-        session.user.provider = token.provider ?? ''
+        // now pull from the token which carries your DB values
+        session.user.id       = token.id as string
+        session.user.name     = token.name as string
+        session.user.email    = token.email as string
+        session.user.provider = token.provider as string
         delete (session.user as any).image
       }
       return session
