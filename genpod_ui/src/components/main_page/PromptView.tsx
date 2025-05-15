@@ -4,11 +4,19 @@ import { useRouter } from 'next/navigation'
 import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { Mic, Paperclip, Send } from 'lucide-react'
+import { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+
 
 export default function PromptView() {
   const [prompt, setPrompt] = useState('')
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { data: session, status } = useSession()
+
+  useEffect(() => {
+    console.log('🧪 PromptView session:', session, 'Status:', status)
+  }, [session, status])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

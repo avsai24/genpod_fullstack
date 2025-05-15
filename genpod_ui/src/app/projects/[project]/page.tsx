@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function ProjectPage({ params }: Props) {
-  const { project } = use(params) // ✅ unwrap the Promise safely
+  const { project } = use(params) 
 
   return (
     <AuthGuard>

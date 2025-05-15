@@ -14,6 +14,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // 🚫 If not authenticated, redirect to login (but avoid loop)
     if (status === 'unauthenticated' && pathname !== '/login') {
+      console.log('AuthGuard → Status:', status)
+      console.log('AuthGuard → Session:', session)
       router.replace('/login')
       return
     }
