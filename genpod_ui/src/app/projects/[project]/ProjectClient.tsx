@@ -7,7 +7,7 @@ import {
   Paperclip,
   Mic,
   Send,
-  ChevronRight,
+  MoreVertical,
   Settings,
   Pencil,
   Trash,
@@ -16,6 +16,8 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
+import { motion } from 'framer-motion'
+
 
 export default function ProjectClient({ project }: { project: string }) {
   const setCurrentProject = useChatStore((s) => s.setCurrentProject)
@@ -28,14 +30,20 @@ export default function ProjectClient({ project }: { project: string }) {
   const [showProjectSettings, setShowProjectSettings] = useState(false)
   const settingsContainerRef = useRef<HTMLDivElement>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  
+  const [tasks, setTasks] = useState<any[]>([])
+  const currentProject = useChatStore((s) => s.currentProject)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [showDeleteTaskModal, setShowDeleteTaskModal] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
 
   useEffect(() => {
     setCurrentProject(project)
   }, [project])
 
+  // Close the Project Settings menu on mousedown outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleProjectSettingsClickOutside = (e: MouseEvent) => {
       if (
         settingsContainerRef.current &&
         !settingsContainerRef.current.contains(e.target as Node)
@@ -43,48 +51,118 @@ export default function ProjectClient({ project }: { project: string }) {
         setShowProjectSettings(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handleProjectSettingsClickOutside)
+    return () =>
+      document.removeEventListener('mousedown', handleProjectSettingsClickOutside)
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Close the Task Options menu on click outside
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement).closest('.task-menu-container')
+      if (!el) {
+        setOpenMenuId(null)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/tasks/list?user_id=${session.user.id}&project_name=${decodeURIComponent(project)}`
+        )
+        const data = await res.json()
+        console.log('📦 Tasks fetched:', data)  // 👈 Add this
+        if (data.ok) {
+          setTasks(data.tasks)
+        }
+      } catch (err) {
+        console.error('❌ Failed to load tasks:', err)
+      }
+    }
+
+    fetchTasks()
+  }, [session?.user?.id, project])
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/tasks/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id: taskId }),
+      })
+      const data = await res.json()
+      if (!data.ok) throw new Error(data.message)
+
+      // Remove task from local state
+      setTasks((prev) => prev.filter((t) => t.task_id !== taskId))
+      setOpenMenuId(null)
+    } catch (err) {
+      console.error('❌ Failed to delete task:', err)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!prompt.trim()) return
-    console.log('Submit prompt:', prompt)
-    setPrompt('')
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
+    const cleanedPrompt = prompt.trim()
+    if (!cleanedPrompt || !session?.user?.id) return
+
+    try {
+      // Step 1: Save the task in DB
+      await fetch(`${API_BASE}/api/tasks/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: session.user.id,
+        project_name: decodeURIComponent(currentProject.trim()),
+        task_prompt: cleanedPrompt,
+      }),
+    })
+
+      // Step 2: Redirect
+      router.push(`/workspace?prompt=${encodeURIComponent(cleanedPrompt)}`)
+    } catch (err) {
+      console.error('❌ Failed to create task:', err)
     }
   }
 
   const handleSaveEdit = async () => {
-  const newName = editedName.trim()
-  if (!newName || newName === project) {
-    setIsEditing(false)
-    return
+    const newName = editedName.trim()
+    if (!newName || newName === project) {
+      setIsEditing(false)
+      return
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/rename`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: session?.user?.id,
+          old_name: decodeURIComponent(project),
+          new_name: newName,
+        }),
+      })
+
+      const data = await res.json()
+      if (!data.ok) throw new Error(data.message)
+
+      setCurrentProject(newName)
+      setIsEditing(false)
+      router.push(`/projects/${encodeURIComponent(newName)}`)
+    } catch (err) {
+      console.error('❌ Rename project failed:', err)
+    }
   }
-
-  try {
-    const res = await fetch(`${API_BASE}/api/projects/rename`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: session?.user?.id,
-        old_name: decodeURIComponent(project),
-        new_name: newName,
-      }),
-    })
-
-    const data = await res.json()
-    if (!data.ok) throw new Error(data.message)
-
-    setCurrentProject(newName)
-    setIsEditing(false)
-    router.push(`/projects/${encodeURIComponent(newName)}`)
-  } catch (err) {
-    console.error('❌ Rename project failed:', err)
-  }
-}
 
   const handleDelete = async () => {
 try {
@@ -147,8 +225,8 @@ try {
             <div ref={settingsContainerRef} className="relative">
               <button
                 title="Project Settings"
-                className="text-muted-foreground hover:text-accent-primary transition"
                 onClick={() => setShowProjectSettings((prev) => !prev)}
+                className="text-muted-foreground hover:text-accent-primary transition-transform duration-150 ease-in-out cursor-pointer hover:scale-105 active:rotate-12"
               >
                 <Settings size={20} />
               </button>
@@ -231,30 +309,64 @@ try {
 
         {/* Previous Tasks */}
         <div className="w-full max-w-2xl mx-auto">
-          <h3 className="text-base font-medium text-muted-foreground mb-3">
-            Previous Tasks
-          </h3>
-          <div className="flex flex-col gap-3">
-            {[{ id: 'task2', title: 'task 2', time: '2 hours ago' }, { id: 'task1', title: 'task 1', time: 'May 1, 2025' }].map((task) => (
+          <h3 className="text-base font-medium text-muted-foreground mb-3">Previous Tasks</h3>
+
+          <div className="flex flex-col gap-3 pr-1">
+            {tasks.length === 0 && (
+              <p className="text-sm text-muted-foreground">No tasks yet. Start with a prompt above.</p>
+            )}
+
+            {tasks.map((task) => (
               <div
-                key={task.id}
-                onClick={() =>
-                  router.push(`/projects/${project}/tasks/${task.id}`)
-                }
-                className="flex items-center justify-between p-4 rounded-lg bg-muted hover:bg-muted/70 transition cursor-pointer shadow-sm"
+                key={task.task_id}
+                className="relative flex items-center justify-between p-4 rounded-lg bg-muted hover:bg-muted/70 transition cursor-pointer shadow-sm"
               >
-                <div className="flex items-start gap-3">
-                  <div className="bg-purple-500 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold">
-                    {project?.charAt(0).toUpperCase()}
+                {/* ✅ Clickable area only for task content */}
+                <div
+                  className="flex items-start gap-3 w-full"
+                  onClick={() => router.push(`/projects/${project}/tasks/${task.task_id}`)}
+                >
+                  <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 bg-purple-500 text-white rounded-full font-semibold text-sm shrink-0">
+                    {project?.trim()?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="font-semibold text-base">{task.title}</div>
-                    <div className="text-muted-foreground text-xs mt-1">
-                      {task.time}
-                    </div>
+                    <div className="font-semibold text-base">{task.task_title}</div>
+                    <div className="text-muted-foreground text-xs mt-1">{task.created_at}</div>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-muted-foreground" />
+
+                {/* ✅ Three-dot button with dropdown */}
+                <div className="relative z-50 task-menu-container">
+                  <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuId((id) => (id === task.task_id ? null : task.task_id))
+                  }}
+                  className="p-1 hover:text-accent-primary text-muted-foreground cursor-pointer"
+                  title="Task Options"
+                >
+                  <MoreVertical size={20} />
+                </motion.button>
+
+                    {openMenuId === task.task_id && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-8 w-40 bg-[var(--surface)] border border-[var(--border)] rounded-md shadow-md p-2 z-[9999]"
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedTaskId(task.task_id)
+                            setShowDeleteTaskModal(true)
+                          }}
+                          className="text-sm text-red-500 px-2 py-2 w-full text-left rounded hover:bg-red-500/10 transition"
+                        >
+                          Delete Task
+                        </button>
+                      </div>
+                    )}
+                  </div>
               </div>
             ))}
           </div>
@@ -269,6 +381,20 @@ try {
         }}
         message="Are you sure you want to delete this project? This action cannot be undone."
         confirmText="Delete Project"
+        cancelText="Cancel"
+      />
+
+      <ConfirmDeleteModal
+        isOpen={showDeleteTaskModal}
+        onClose={() => setShowDeleteTaskModal(false)}
+        onConfirm={() => {
+          if (selectedTaskId) {
+            handleDeleteTask(selectedTaskId)
+            setShowDeleteTaskModal(false)
+          }
+        }}
+        message="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete Task"
         cancelText="Cancel"
       />
     </div>

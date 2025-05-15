@@ -18,10 +18,27 @@ export default function PromptView() {
     console.log('🧪 PromptView session:', session, 'Status:', status)
   }, [session, status])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (prompt.trim()) {
-      router.push(`/workspace?prompt=${encodeURIComponent(prompt.trim())}`)
+    const trimmedPrompt = prompt.trim()
+    if (!trimmedPrompt || !session?.user?.id) return
+
+    try {
+      // 1. Save task in backend
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: session.user.id,
+          project_name: 'default', // You can pass actual selected project if needed
+          task_prompt: trimmedPrompt,
+        }),
+      })
+
+      // 2. Redirect to workspace
+      router.push(`/workspace?prompt=${encodeURIComponent(trimmedPrompt)}`)
+    } catch (err) {
+      console.error('❌ Failed to create task:', err)
     }
   }
 
