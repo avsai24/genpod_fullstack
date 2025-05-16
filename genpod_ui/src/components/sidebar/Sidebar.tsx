@@ -112,7 +112,7 @@ export default function Sidebar() {
         {/* User Preferences (simple link) */}
         <SidebarIcon
           icon={<Settings size={20} />}
-          label="User Settings"
+          label="User Preferences"
           isHovered={isHovered}
           onClick={() => router.push('/settings')}
         />

@@ -30,7 +30,7 @@ export default function PromptView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: session.user.id,
-          project_name: 'default', // You can pass actual selected project if needed
+          project_name: '__default', 
           task_prompt: trimmedPrompt,
         }),
       })
