@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Mic, Paperclip, Send } from 'lucide-react'
 import { useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useFileStore } from '@/state/fileStore'
 
 
 export default function PromptView() {
@@ -15,9 +16,13 @@ export default function PromptView() {
   const { data: session, status } = useSession()
 
   useEffect(() => {
-    console.log('🧪 PromptView session:', session, 'Status:', status)
-  }, [session, status])
-
+      console.log('🧪 PromptView session:', session, 'Status:', status)
+    }, [session, status])
+    useEffect(() => {
+    // Reset everything when entering a new task/workspace
+    useFileStore.getState().resetAll()
+  }, [])
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmedPrompt = prompt.trim()

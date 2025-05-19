@@ -12,190 +12,145 @@ interface FileContentEvent {
   }
 }
 
-export default function MonacoViewer({ filePath }: { filePath: string }) {
+export default function MonacoViewer({
+  filePath,
+  isWorkflowComplete,
+}: {
+  filePath: string
+  isWorkflowComplete: boolean
+}) {
   const [language, setLanguage] = useState<string>('plaintext')
   const editorRef = useRef<Monaco | null>(null)
   const { setFileContent, addEventSource, removeEventSource } = useFileStore()
+  const backendUrl = 'http://localhost:8000'
 
-  // Handle editor mount
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor
-    console.log('[MonacoViewer] Editor mounted for file:', filePath)
+    console.log('[MonacoViewer] Editor mounted for:', filePath)
   }
 
-  // Handle editor unmount
   const handleEditorWillUnmount = () => {
-    console.log('[MonacoViewer] Editor unmounting for file:', filePath)
+    console.log('[MonacoViewer] Editor unmounted for:', filePath)
     editorRef.current = null
   }
 
-  // Update Monaco editor content while preserving state
   const updateEditorContent = (content: string) => {
     if (!editorRef.current) return
-
     const model = editorRef.current.getModel()
     if (!model) return
 
-    // Preserve cursor position and view state
-    const position = editorRef.current.getPosition()
+    const pos = editorRef.current.getPosition()
     const viewState = editorRef.current.saveViewState()
-
-    // Update content
     model.setValue(content)
-
-    // Restore cursor and view state
-    if (position) {
-      editorRef.current.setPosition(position)
-    }
-    if (viewState) {
-      editorRef.current.restoreViewState(viewState)
-    }
+    if (pos) editorRef.current.setPosition(pos)
+    if (viewState) editorRef.current.restoreViewState(viewState)
   }
 
-  // Function to force refresh editor content
-  const refreshEditorContent = async () => {
+  const loadFileViaREST = async () => {
     try {
-      const backendUrl = 'http://localhost:8000'
       const response = await fetch(`${backendUrl}/api/file-content?file=${encodeURIComponent(filePath)}`, {
         method: 'GET',
         credentials: 'include',
       })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const data = await response.json()
       if (data.content) {
-        console.log('[MonacoViewer] Refreshed content for:', filePath)
         setFileContent(filePath, data.content, null)
         updateEditorContent(data.content)
       }
     } catch (error) {
-      console.error('[MonacoViewer] Error refreshing content:', error)
+      console.error('[MonacoViewer] REST load error:', error)
+      setFileContent(filePath, null, 'Failed to load content')
     }
   }
 
   useEffect(() => {
-    const backendUrl = 'http://localhost:8000'
+    const controller = new AbortController()
     let es: EventSource | null = null
     let reconnectAttempts = 0
     const maxReconnectAttempts = 5
-    const reconnectDelay = 1000 // 1 second
-    const refreshInterval = setInterval(() => {
-      refreshEditorContent()
-    }, 5000)
+    const reconnectDelay = 1000
+    let refreshInterval: NodeJS.Timeout | null = null
+    let denied = false
 
-    const connect = () => {
-      if (es) {
-        es.close()
-      }
+    const connectSSE = () => {
+      if (denied) return
+      if (es) es.close()
 
       es = new EventSource(`${backendUrl}/api/files/events`, {
         withCredentials: true
       })
 
-      // Handle file content updates
       es.addEventListener('file_content_diff', (event) => {
         try {
           const data: FileContentEvent = JSON.parse(event.data)
           if (data.data.path === filePath) {
-            console.log('[MonacoViewer] Received content update for:', filePath)
-            
-            // Update Zustand store
             setFileContent(filePath, data.data.content, null)
-            
-            // Update Monaco editor
             updateEditorContent(data.data.content)
           }
-        } catch (error) {
-          console.error('[MonacoViewer] Error processing file_content_diff:', error)
+        } catch (err) {
+          console.error('[MonacoViewer] SSE diff error:', err)
         }
       })
 
-      // Handle file tree updates
-      es.addEventListener('file_tree', () => {
-        console.log('[MonacoViewer] Received file tree update')
-        // Force refresh when file tree updates
-        refreshEditorContent()
+      es.addEventListener('closed', () => {
+        console.log('[MonacoViewer] SSE closed by server (workflow inactive)')
+        denied = true
+        es?.close()
       })
 
       es.onopen = () => {
-        console.log('[MonacoViewer] SSE connection established for file:', filePath)
-        reconnectAttempts = 0 // Reset reconnect attempts on successful connection
-        
-        // Request initial file content
-        fetch(`${backendUrl}/api/file-content?file=${encodeURIComponent(filePath)}`, {
-          method: 'GET',
-          credentials: 'include',
-        })
-          .then(res => {
-            if (!res.ok) {
-              throw new Error(`HTTP error! status: ${res.status}`)
-            }
-            return res.json()
-          })
-          .then(data => {
-            if (data.content) {
-              console.log('[MonacoViewer] Received initial content for:', filePath)
-              setFileContent(filePath, data.content, null)
-              updateEditorContent(data.content)
-            } else {
-              console.error('[MonacoViewer] No content received for:', filePath)
-              setFileContent(filePath, null, 'No content received')
-            }
-          })
-          .catch(error => {
-            console.error('[MonacoViewer] Error fetching initial content:', error)
-            setFileContent(filePath, null, error.message)
-          })
+        reconnectAttempts = 0
+        loadFileViaREST()
+        refreshInterval = setInterval(() => {
+          loadFileViaREST()
+        }, 5000)
       }
 
-      es.onerror = (error) => {
-        console.error('[MonacoViewer] SSE connection error:', error)
-        
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++
-          console.log(`[MonacoViewer] Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`)
-          setTimeout(connect, reconnectDelay)
+      es.onerror = () => {
+        if (denied) return
+        if (reconnectAttempts++ < maxReconnectAttempts) {
+          console.warn(`[MonacoViewer] Reconnecting SSE (${reconnectAttempts})`)
+          setTimeout(connectSSE, reconnectDelay)
         } else {
-          console.error('[MonacoViewer] Max reconnection attempts reached')
-          setFileContent(filePath, null, 'Connection lost')
+          console.error('[MonacoViewer] Max SSE reconnects reached')
         }
       }
 
-      if (es) {
-        addEventSource(filePath, es)
-      }
+      addEventSource(filePath, es)
     }
 
-    // Initial connection
-    connect()
+    if (isWorkflowComplete) {
+      console.log('[MonacoViewer] Workflow complete, using REST only')
+      loadFileViaREST()
+      return () => controller.abort()
+    }
+
+    connectSSE()
 
     return () => {
-      console.log('[MonacoViewer] Cleaning up SSE connection')
       if (es) {
         es.close()
         removeEventSource(filePath)
       }
-      clearInterval(refreshInterval)
+      if (refreshInterval) clearInterval(refreshInterval)
+      controller.abort()
     }
-  }, [filePath, setFileContent, addEventSource, removeEventSource])
+  }, [filePath, isWorkflowComplete])
 
   useEffect(() => {
-    // Detect language based on file extension
-    const extension = filePath.split('.').pop()?.toLowerCase()
+    const ext = filePath.split('.').pop()?.toLowerCase()
     const languageMap: Record<string, string> = {
-      'js': 'javascript',
-      'ts': 'typescript',
-      'py': 'python',
-      'json': 'json',
-      'html': 'html',
-      'css': 'css',
-      'md': 'markdown',
-      'txt': 'plaintext',
+      js: 'javascript',
+      ts: 'typescript',
+      py: 'python',
+      json: 'json',
+      html: 'html',
+      css: 'css',
+      md: 'markdown',
+      txt: 'plaintext',
     }
-    setLanguage(languageMap[extension || ''] || 'plaintext')
+    setLanguage(languageMap[ext || ''] || 'plaintext')
   }, [filePath])
 
   const fileContent = useFileStore((state) => state.fileContents[filePath])

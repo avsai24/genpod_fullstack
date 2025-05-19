@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 import time
 from pathlib import Path
+from server.agent_server import workflow_state
 
 logger = logging.getLogger(__name__)
 
@@ -119,17 +120,15 @@ class SSEManager:
         try:
             client_queue = asyncio.Queue()
             await self.add_client(client_queue)
-            
+
             try:
-                while True:
-                    # Check for keep-alive timeout
+                while workflow_state.is_active():
                     current_time = time.time()
                     if current_time - self._last_keep_alive >= self._keep_alive_interval:
                         self._last_keep_alive = current_time
                         keep_alive = "event: keep-alive\ndata: {}\n\n"
                         yield keep_alive
-                    
-                    # Get next message from queue
+
                     try:
                         message = await asyncio.wait_for(client_queue.get(), timeout=1)
                         yield message
@@ -139,14 +138,14 @@ class SSEManager:
                     except Exception as e:
                         logger.error(f"❌ Error getting message from queue: {str(e)}")
                         break
-                        
+
             finally:
+                logger.info("🛑 Workflow complete. Closing SSE connection for client.")
                 await self.remove_client(client_queue)
-                
+
         except Exception as e:
             logger.error(f"❌ Error in event generation: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error generating SSE events")
-
     async def _send_message(self, client: asyncio.Queue, message: str):
         """Send a message to a specific client."""
         try:

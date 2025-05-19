@@ -19,6 +19,7 @@ class FileSystemService:
 
     def get_file_tree(self) -> Dict:
         """Generate a nested dictionary representing the file tree."""
+        
         def build_tree(path: Path) -> Dict:
             if path.is_file():
                 return {

@@ -18,8 +18,30 @@ from server.agents.supervisor import SupervisorAgent
 import google.generativeai as genai
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise RuntimeError("❌ Missing GEMINI_API_KEY environment variable")
+
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash")
+
+# 🔄 Shared workflow status
+class WorkflowState:
+    def __init__(self):
+        self._active = False
+
+    def activate(self):
+        print("🔁 [WorkflowState] Activating...")
+        self._active = True
+
+    def deactivate(self):
+        print("🛑 [WorkflowState] Deactivating...")
+        self._active = False
+
+    def is_active(self):
+        return self._active
+
+# ✅ Global shared instance
+workflow_state = WorkflowState()
 
 LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), "../logs/agent.log")
 PROJECT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -156,8 +178,8 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                             continue
 
                     # ✅ Keep the gRPC stream open to support SSE on frontend
-                    while True:
-                        time.sleep(60)
+                    while workflow_state.is_active():
+                        time.sleep(5)
 
                 except Exception as e:
                     print(f"[Code] Streaming error: {e}")
@@ -168,122 +190,134 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                             "message": str(e)
                         }])
                     )
-        else:
-            while True:
-                if request.tab == "metrics":
-                    print("[Metrics] Streaming metrics data...")
-                    while True:
-                        data = {
-                            "project_overview": [
-                                {"name": "Service Name", "value": "TitleRequestsMicroservice"},
-                                {"name": "Current Status", "value":  "COMPLETED"},
-                                {"name": "Completion (%)", "value": f"{random.uniform(5.0, 100.0):.1f}%"},
-                                {"name": "Agents Status", "value": random.choice([
-                                    "Supervisor assigning tasks",
-                                    "Coder active",
-                                    "All agents idle",
-                                    "Tester running validations"
-                                ])},
-                                {"name": "Total Tasks", "value": str(random.randint(10, 30))},
-                                {"name": "Total Planned Tasks", "value": str(random.randint(10, 20))},
-                                {"name": "Total Issues", "value": str(random.randint(0, 5))},
-                                {"name": "User Prompt", "value": "I want to develop a Title Requests Micro-service adhering to MISMO..."},
-                                {"name": "Project Directory", "value": "/home/venkata/genpod/output/..."}
-                            ],
-                            "planned_tasks": [
-                                {"name": "Current Planned Task ID", "value": f"{random.randint(1700000000000, 1800000000000)}-..."},
-                                {"name": "Position in queue", "value": str(random.randint(0, 10))},
-                                {"name": "Total Planned Tasks", "value": str(random.randint(0, 10))}
-                            ],
-                            "issues": [
-                                {"name": "Current Issue Position", "value": str(random.randint(0, 5))},
-                                {"name": "Total Issues", "value": str(random.randint(0, 5))}
-                            ],
-                            "agent_state": [
-                                {"name": "Agent", "value": random.choice(["Solution Architect", "Coder", "Tester"])},
-                                {"name": "Active Node", "value": random.choice(["entry", "design", "validate", "build"])},
-                                {"name": "Stage", "value": random.choice(["generate_requirements", "setup_env", "write_tests"])}
-                            ],
-                            "token_summary": [
-                                {"name": "Total Calls", "value": str(random.randint(5, 20))},
-                                {"name": "Aggregate Input Tokens", "value": f"{random.randint(5000, 10000):,}"},
-                                {"name": "Aggregate Output Tokens", "value": f"{random.randint(8000, 15000):,}"},
-                                {"name": "Avg Call Duration (s)", "value": f"{random.uniform(5.0, 20.0):.2f}"},
-                                {"name": "Total LLM Time (s)", "value": f"{random.uniform(50.0, 200.0):.2f}"}
-                            ],
-                            "token_by_model": [
-                                {
-                                    "model": "openai/g3-mini",
-                                    "calls": random.randint(5, 20),
-                                    "input_tokens": f"{random.randint(3000, 8000):,} ($0.01)",
-                                    "output_tokens": f"{random.randint(5000, 12000):,} ($0.04)",
-                                    "total_cost": "$0.05"
-                                },
-                                {
-                                    "model": "ALL MODELS",
-                                    "calls": random.randint(5, 20),
-                                    "input_tokens": f"{random.randint(6000, 10000):,}",
-                                    "output_tokens": f"{random.randint(9000, 14000):,}",
-                                    "total_cost": "$0.06"
-                                }
-                            ]
+        
+        elif request.tab == "metrics":
+            print("[Metrics] Streaming metrics data...")
+
+            while workflow_state.is_active():
+                data = {
+                    "project_overview": [
+                        {"name": "Service Name", "value": "TitleRequestsMicroservice"},
+                        {"name": "Current Status", "value": "COMPLETED"},
+                        {"name": "Completion (%)", "value": f"{random.uniform(5.0, 100.0):.1f}%"},
+                        {"name": "Agents Status", "value": random.choice([
+                            "Supervisor assigning tasks",
+                            "Coder active",
+                            "All agents idle",
+                            "Tester running validations"
+                        ])},
+                        {"name": "Total Tasks", "value": str(random.randint(10, 30))},
+                        {"name": "Total Planned Tasks", "value": str(random.randint(10, 20))},
+                        {"name": "Total Issues", "value": str(random.randint(0, 5))},
+                        {"name": "User Prompt", "value": "I want to develop a Title Requests Micro-service adhering to MISMO..."},
+                        {"name": "Project Directory", "value": "/home/venkata/genpod/output/..."}
+                    ],
+                    "planned_tasks": [
+                        {"name": "Current Planned Task ID", "value": f"{random.randint(1700000000000, 1800000000000)}-..."},
+                        {"name": "Position in queue", "value": str(random.randint(0, 10))},
+                        {"name": "Total Planned Tasks", "value": str(random.randint(0, 10))}
+                    ],
+                    "issues": [
+                        {"name": "Current Issue Position", "value": str(random.randint(0, 5))},
+                        {"name": "Total Issues", "value": str(random.randint(0, 5))}
+                    ],
+                    "agent_state": [
+                        {"name": "Agent", "value": random.choice(["Solution Architect", "Coder", "Tester"])},
+                        {"name": "Active Node", "value": random.choice(["entry", "design", "validate", "build"])},
+                        {"name": "Stage", "value": random.choice(["generate_requirements", "setup_env", "write_tests"])}
+                    ],
+                    "token_summary": [
+                        {"name": "Total Calls", "value": str(random.randint(5, 20))},
+                        {"name": "Aggregate Input Tokens", "value": f"{random.randint(5000, 10000):,}"},
+                        {"name": "Aggregate Output Tokens", "value": f"{random.randint(8000, 15000):,}"},
+                        {"name": "Avg Call Duration (s)", "value": f"{random.uniform(5.0, 20.0):.2f}"},
+                        {"name": "Total LLM Time (s)", "value": f"{random.uniform(50.0, 200.0):.2f}"}
+                    ],
+                    "token_by_model": [
+                        {
+                            "model": "openai/g3-mini",
+                            "calls": random.randint(5, 20),
+                            "input_tokens": f"{random.randint(3000, 8000):,} ($0.01)",
+                            "output_tokens": f"{random.randint(5000, 12000):,} ($0.04)",
+                            "total_cost": "$0.05"
+                        },
+                        {
+                            "model": "ALL MODELS",
+                            "calls": random.randint(5, 20),
+                            "input_tokens": f"{random.randint(6000, 10000):,}",
+                            "output_tokens": f"{random.randint(9000, 14000):,}",
+                            "total_cost": "$0.06"
                         }
-
-                        yield agent_pb2.AgentResponse(
-                            type="metrics",
-                            json_payload=json.dumps(data)
-                        )
-
-                        time.sleep(2)
-                
-                
-                elif request.tab == "configure":
-                    data = {
-                        "max_users": "1000",
-                        "region": "us-central",
-                        "logging_enabled": True,
-                    }
-                    yield agent_pb2.AgentResponse(
-                        type="configure",
-                        json_payload=json.dumps(data)
-                    )
-                elif request.tab == "insights":
-                    print("[Insights] Streaming insights data...")
-                    while True:
-                        data = {
-                            "top_queries": random.sample([
-                                "how to use Genpod",
-                                "configure AI agents",
-                                "debug code tab",
-                                "setup prompts",
-                                "track agent memory"
-                            ], 3),
-                            "error_rate": f"{round(random.uniform(0.5, 3.5), 1)}%",
-                            "active_users": random.randint(100, 500),
-                        }
-
-                        yield agent_pb2.AgentResponse(
-                            type="insights",
-                            json_payload=json.dumps(data)
-                        )
-
-                        time.sleep(2)
-                elif request.tab == "preview":
-                    data = {
-                        "html": "<h1>Welcome</h1><p>This is a preview pane.</p>",
-                    }
-                else:
-                    break
+                    ]
+                }
 
                 yield agent_pb2.AgentResponse(
-                    type=request.tab,
+                    type="metrics",
+                    json_payload=json.dumps(data)
+                )
+
+                time.sleep(2)
+
+            # 👇 Send final snapshot one last time before closing stream
+            yield agent_pb2.AgentResponse(
+                type="metrics",
+                json_payload=json.dumps(data)
+            )
+            print("[Metrics] Workflow complete. Final metrics sent. Closing stream.")
+            return
+        
+        elif request.tab == "configure":
+            data = {
+                "max_users": "1000",
+                "region": "us-central",
+                "logging_enabled": True,
+            }
+            yield agent_pb2.AgentResponse(
+                type="configure",
+                json_payload=json.dumps(data)
+            )
+        
+        elif request.tab == "insights":
+            print("[Insights] Streaming insights data...")
+            while True:
+                data = {
+                    "top_queries": random.sample([
+                        "how to use Genpod",
+                        "configure AI agents",
+                        "debug code tab",
+                        "setup prompts",
+                        "track agent memory"
+                    ], 3),
+                    "error_rate": f"{round(random.uniform(0.5, 3.5), 1)}%",
+                    "active_users": random.randint(100, 500),
+                }
+
+                yield agent_pb2.AgentResponse(
+                    type="insights",
+                    json_payload=json.dumps(data)
+                )
+
+                time.sleep(2)
+        
+        elif request.tab == "preview":
+            while True:
+                data = {
+                    "html": "<h1>Welcome</h1><p>This is a preview pane.</p>"
+                }
+                yield agent_pb2.AgentResponse(
+                    type="preview",
                     json_payload=json.dumps(data)
                 )
                 time.sleep(2)
-
+        
+        else:
+            yield agent_pb2.AgentResponse(
+                type="error",
+                json_payload=json.dumps({"error": f"Unsupported tab: {request.tab}"})
+            )
     async def RunAgentWorkflow(self, request, context):
         print(f"[Workflow] User {request.user_id} requested prompt: {request.prompt}")
-
+        workflow_state.activate()
         def send_log(agent_name, message):
             return agent_pb2.AgentUpdate(
                 log=agent_pb2.LogEntry(
@@ -359,6 +393,7 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         yield agent_pb2.AgentUpdate(
             answer=agent_pb2.FinalAnswer(content=final_output)
         )
+        workflow_state.deactivate()
         print("[Workflow] Finished workflow and sent final answer.")
 
         

@@ -26,27 +26,29 @@ type MetricsData = {
 }
 
 export default function MetricsTab() {
-  const [metrics, setMetrics] = useState<MetricsData | null>(null)
+  const metrics = useAgentStreamStore(s => s.metrics)
+  const setMetrics = useAgentStreamStore(s => s.setMetrics)
+  
   const [isConnected, setIsConnected] = useState(false)
   const [history, setHistory] = useState<number[]>([])
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
   const prompt = useAgentStreamStore((s) => s.prompt)
+  const workflowComplete = useAgentStreamStore((s) => s.workflow?.completed)
 
   useEffect(() => {
+    
     if (!prompt) {
-      setMetrics(null)
       setIsConnected(false)
       return
     }
-
     const eventSource = new EventSource('/api/metrics')
+    setIsConnected(true)
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
         if (data.metrics) {
           setMetrics(data.metrics)
-          setIsConnected(true)
 
           const completion = data.metrics.project_overview.find((m: Metric) => m.name === 'Completion (%)')
           if (completion) {
@@ -60,12 +62,25 @@ export default function MetricsTab() {
     }
 
     eventSource.onerror = () => {
+      console.warn('📡 Metrics SSE error, closing...')
       eventSource.close()
       setIsConnected(false)
     }
 
-    return () => eventSource.close()
-  }, [])
+    const interval = setInterval(() => {
+      if (workflowComplete) {
+        console.log('✅ Workflow complete — closing metrics SSE.')
+        eventSource.close()
+        setIsConnected(false)
+        clearInterval(interval)
+      }
+    }, 1000)
+
+    return () => {
+      clearInterval(interval)
+      eventSource.close()
+    }
+  }, [prompt, workflowComplete])
 
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
@@ -74,10 +89,10 @@ export default function MetricsTab() {
       {/* <h2 className="text-2xl font-bold text-textPrimary">Real-Time Metrics</h2> */}
 
       {!prompt ? (
-       <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
-       No workflow yet. Start with a prompt to see metrics.
-     </div>
-      ) : !isConnected ? (
+        <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
+          No workflow yet. Start with a prompt to see metrics.
+        </div>
+      ) : !isConnected && !metrics ? (
         <p className="text-textSecondary animate-pulse">Connecting to metrics agent...</p>
       ) : metrics ? (
         <div className="space-y-6">
@@ -87,6 +102,9 @@ export default function MetricsTab() {
           <CollapsibleSection title="Agent State" rows={metrics.agent_state} open={openSections["agent"]} toggle={() => toggle("agent")} />
           <CollapsibleSection title="Token Summary" rows={metrics.token_summary} open={openSections["summary"]} toggle={() => toggle("summary")} />
           <ModelTable rows={metrics.token_by_model} />
+          {!isConnected && (
+            <p className="text-xs text-textSecondary mt-4">Workflow is complete. Showing last known metrics snapshot.</p>
+          )}
         </div>
       ) : null}
     </div>

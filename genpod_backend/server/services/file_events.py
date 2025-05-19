@@ -8,6 +8,7 @@ from .file_watcher import FileWatcher
 from .file_system import FileSystemService
 from .sse_manager import sse_manager
 import threading
+from server.agent_server import workflow_state
 
 logger = logging.getLogger(__name__)
 
@@ -48,25 +49,28 @@ class FileEventsService:
         """Start watching for file changes."""
         try:
             if not self._is_watching:
-                logger.info("🔄 Starting file watching...")
-                logger.info(f"🧵 Active threads: {threading.active_count()}")
-                logger.info(f"🧵 Thread names: {[t.name for t in threading.enumerate()]}")
-                
-                self._setup_watcher()
-                if self.watcher:
-                    self.watcher.start()
-                    self._is_watching = True
-                    logger.info("✅ File watching started successfully")
+                if workflow_state.is_active():  # ✅ Only start when workflow is active
+                    logger.info("🔄 Starting file watching...")
                     logger.info(f"🧵 Active threads: {threading.active_count()}")
                     logger.info(f"🧵 Thread names: {[t.name for t in threading.enumerate()]}")
+                    
+                    self._setup_watcher()
+                    if self.watcher:
+                        self.watcher.start()
+                        self._is_watching = True
+                        logger.info("✅ File watching started successfully")
+                        logger.info(f"🧵 Active threads: {threading.active_count()}")
+                        logger.info(f"🧵 Thread names: {[t.name for t in threading.enumerate()]}")
+                    else:
+                        logger.error("❌ Cannot start watching: watcher not initialized")
                 else:
-                    logger.error("❌ Cannot start watching: watcher not initialized")
+                    logger.info("⚠️ Skipping file watcher start: workflow is not active")
             else:
                 logger.info("ℹ️ Already watching for file changes")
         except Exception as e:
             logger.error(f"❌ Error starting file watching: {str(e)}", exc_info=True)
             self._is_watching = False
-
+    
     def stop_watching(self):
         """Stop watching for file changes."""
         try:
@@ -74,6 +78,7 @@ class FileEventsService:
                 logger.info("🛑 Stopping file watching...")
                 self.watcher.stop()
                 self._is_watching = False
+                self.watcher = None
                 logger.info("✅ File watching stopped successfully")
             else:
                 logger.info("ℹ️ Not currently watching for file changes")
@@ -87,6 +92,8 @@ class FileEventsService:
             
             # Get current file tree
             file_tree = self.file_system.get_file_tree()
+            logger.warning(f"📁 File tree returned by FileSystemService: {json.dumps(file_tree, indent=2)}")
+
             if not file_tree:
                 logger.warning("⚠️ No file tree data available")
                 return

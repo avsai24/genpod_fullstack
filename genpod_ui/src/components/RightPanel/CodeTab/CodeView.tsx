@@ -21,6 +21,15 @@ export default function CodeView() {
     setActivePath,
   } = useProjectStore()
 
+
+  const logs = useAgentStreamStore((s) => s.logs)
+
+  const isWorkflowComplete = logs.some(
+    (log) =>
+      log.agent_name.toLowerCase() === 'complete' &&
+      log.message.toLowerCase().includes('all agents finished successfully')
+)
+
   const [sidebarWidth, setSidebarWidth] = useState(300) // Default sidebar width
   const isDragging = useRef(false)
   const startX = useRef(0)
@@ -115,7 +124,7 @@ export default function CodeView() {
             />
             <div className="flex-1">
               {activePath ? (
-                <MonacoViewer filePath={activePath} />
+                <MonacoViewer filePath={activePath} isWorkflowComplete={isWorkflowComplete} />
               ) : (
                 <div className="text-textSecondary h-full flex items-center justify-center text-sm">
                   Select a file to view content

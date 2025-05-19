@@ -13,12 +13,13 @@ type FileStore = {
   addEventSource: (filePath: string, es: EventSource) => void
   removeEventSource: (filePath: string) => void
   cleanup: () => void
+  resetAll: () => void // ✅ New
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
   fileContents: {},
   eventSources: {},
-  
+
   setFileContent: (filePath, content, error) => {
     set((state) => ({
       fileContents: {
@@ -33,7 +34,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
   },
 
   addEventSource: (filePath, es) => {
-    // Close any existing connection for this file
     const { eventSources } = get()
     const existingEs = eventSources[filePath]
     if (existingEs) {
@@ -71,5 +71,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
       es.close()
     })
     set({ eventSources: {}, fileContents: {} })
+  },
+
+  resetAll: () => {
+    const { eventSources } = get()
+    Object.entries(eventSources).forEach(([filePath, es]) => {
+      es.close()
+    })
+    set({
+      fileContents: {},
+      eventSources: {}
+    })
+    console.log('[FileStore] resetAll: Cleared all file contents and SSE connections')
   }
-})) 
+}))

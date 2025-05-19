@@ -1,5 +1,23 @@
 import { create } from 'zustand'
 
+// ─── Types ─────────────────────────────────────────────────────────────
+interface Metric { name: string; value: string }
+interface TokenModel {
+  model: string
+  calls: number
+  input_tokens: string
+  output_tokens: string
+  total_cost: string
+}
+interface MetricsData {
+  project_overview: Metric[]
+  planned_tasks: Metric[]
+  issues: Metric[]
+  agent_state: Metric[]
+  token_summary: Metric[]
+  token_by_model: TokenModel[]
+}
+
 interface Log {
   agent_name: string
   timestamp: string
@@ -28,6 +46,7 @@ interface WorkflowState {
   completed: boolean
 }
 
+// ─── Main Zustand Store Interface ─────────────────────────────────────
 interface AgentStreamStore {
   prompt: string | null
   workflow: WorkflowState | null
@@ -36,6 +55,7 @@ interface AgentStreamStore {
   isLayoutLocked: boolean
   answerChunks: string[]
   isStreaming: boolean
+  metrics: MetricsData | null
 
   setPrompt: (prompt: string) => void
   setWorkflow: (workflow: WorkflowState) => void
@@ -43,10 +63,12 @@ interface AgentStreamStore {
   pushAnswerChunk: (chunk: string) => void
   updateNodePosition: (nodeId: string, position: { x: number; y: number }) => void
   toggleLayoutLock: () => void
+  setMetrics: (data: MetricsData) => void
   startAgentStream: (message: string) => Promise<void>
   reset: () => void
 }
 
+// ─── Initial Workflow State ────────────────────────────────────────────
 const initialWorkflowState: WorkflowState = {
   prompt: '',
   agents: {},
@@ -54,7 +76,8 @@ const initialWorkflowState: WorkflowState = {
   completed: false
 }
 
-export const useAgentStreamStore = create<AgentStreamStore>((set) => ({
+// ─── Zustand Store ─────────────────────────────────────────────────────
+export const useAgentStreamStore = create<AgentStreamStore>((set, get) => ({
   prompt: null,
   workflow: null,
   logs: [],
@@ -62,13 +85,14 @@ export const useAgentStreamStore = create<AgentStreamStore>((set) => ({
   isLayoutLocked: false,
   answerChunks: [],
   isStreaming: false,
+  metrics: null,
 
   setPrompt: (prompt) => set({ prompt }),
   setWorkflow: (workflow) => set({ workflow }),
+  setMetrics: (data) => set({ metrics: data }),
   addLog: (log) => set((state) => ({ logs: [...state.logs, log] })),
   pushAnswerChunk: (chunk) =>
     set((state) => ({ answerChunks: [...state.answerChunks, chunk] })),
-
   updateNodePosition: (nodeId, position) =>
     set((state) => ({
       nodePositions: {
@@ -160,8 +184,9 @@ export const useAgentStreamStore = create<AgentStreamStore>((set) => ({
                     answerChunks: [...state.answerChunks, data.content]
                   }))
                 } else if (eventType === 'workflow') {
-                  console.log('🛠️ Setting real workflow structure', data)
                   set({ workflow: data })
+                } else if (eventType === 'metrics') {
+                  set({ metrics: data })
                 }
 
               } catch (err) {
@@ -188,5 +213,6 @@ export const useAgentStreamStore = create<AgentStreamStore>((set) => ({
       isLayoutLocked: false,
       answerChunks: [],
       isStreaming: false,
+      metrics: null,
     }),
 }))
