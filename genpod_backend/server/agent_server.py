@@ -266,17 +266,6 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
             print("[Metrics] Workflow complete. Final metrics sent. Closing stream.")
             return
         
-        elif request.tab == "configure":
-            data = {
-                "max_users": "1000",
-                "region": "us-central",
-                "logging_enabled": True,
-            }
-            yield agent_pb2.AgentResponse(
-                type="configure",
-                json_payload=json.dumps(data)
-            )
-        
         elif request.tab == "insights":
             print("[Insights] Streaming insights data...")
             while True:

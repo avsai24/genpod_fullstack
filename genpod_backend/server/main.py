@@ -1,11 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.workspace.configure import profile, settings
+
+from .api.workspace import chat_stream, files
+
 from .api.projects import create_project, list_projects, rename_project, delete_project
 
 from .api.tasks import create_task, list_tasks, rename_task, delete_task
 from .api.authentication import check_user, register_user
-from .api import files, settings, prompt_routes, chat_stream, profile
+from .api.workspace.configure import prompt_routes
 from .services.file_events import FileEventsService
 from .db.init_db import create_users_table_if_not_exists  
 import logging
