@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react'
 
 export default function SettingsForm() {
   const { data: session, status } = useSession()
+
   const [platformName, setPlatformName] = useState('')
   const [accessToken, setAccessToken] = useState('')
   const [maskedToken, setMaskedToken] = useState(false)
@@ -25,7 +26,7 @@ export default function SettingsForm() {
     const fetchSettings = async () => {
       try {
         const res = await fetch(
-          `http://localhost:8000/api/settings?user_id=${session.user?.email}`
+          `http://localhost:8000/api/settings?user_id=${session.user?.id}`
         )
         const data = await res.json()
 
@@ -51,7 +52,7 @@ export default function SettingsForm() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       setMessage('You are not logged in.')
       return
     }
@@ -69,7 +70,7 @@ export default function SettingsForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: session.user.email,
+          user_id: session.user.id,
           platform_name: platformName,
           access_token: accessToken,
         }),

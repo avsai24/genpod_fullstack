@@ -11,9 +11,9 @@ import {
 import Image from 'next/image'
 import { useSidebarStore } from '@/state/sidebarStore'
 import SidebarIcon from './SidebarIcon'
-import ProjectList from './ProjectList'
-import TasksList from './TasksList'
-import ProfileMenu from './ProfileMenu'
+import ProjectList from './project/ProjectList'
+import TasksList from './tasks/TasksList'
+import ProfileMenu from './profile/ProfileMenu'
 import { useState } from 'react'
 
 export default function Sidebar() {

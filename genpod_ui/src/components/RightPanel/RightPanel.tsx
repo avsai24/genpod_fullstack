@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import CodeView from './CodeTab/CodeView'
+import CodeView from './CodeTab/CodeTab'
 import PreviewView from './PreviewTab/PreviewView'
 import ConfigureTab from './ConfigureTab/ConfigureTab'
 import InsightsTab from './InsightsTab/InsightsTab'

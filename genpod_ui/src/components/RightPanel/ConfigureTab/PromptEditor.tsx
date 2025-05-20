@@ -12,13 +12,13 @@ export default function PromptEditor() {
 
   const API_BASE = 'http://localhost:8000/api'
 
-  // Load YAML from backend on mount
+  // ✅ Load YAML from backend on mount
   useEffect(() => {
-    if (!session?.user?.email) return
+    if (!session?.user?.id) return
 
     setStatus('loading')
 
-    fetch(`${API_BASE}/prompts?user_id=${session.user.email}`)
+    fetch(`${API_BASE}/prompts?user_id=${session.user.id}`)
       .then(res => res.json())
       .then(data => {
         if (data.prompt) setYamlContent(data.prompt)
@@ -33,7 +33,7 @@ export default function PromptEditor() {
   }
 
   const handleSave = async () => {
-    if (!session?.user?.email) return
+    if (!session?.user?.id) return
 
     setStatus('loading')
 
@@ -41,7 +41,7 @@ export default function PromptEditor() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: session.user.email,
+        user_id: session.user.id,
         prompt: yamlContent,
       }),
     })
@@ -76,7 +76,7 @@ export default function PromptEditor() {
 
       <div className="flex items-center gap-3">
         <button
-  className="bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white px-4 py-2 rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"          
+          className="bg-[#2f2f2f] hover:bg-[#3a3a3a] text-white px-4 py-2 rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!isDirty || status === 'loading'}
           onClick={handleSave}
         >

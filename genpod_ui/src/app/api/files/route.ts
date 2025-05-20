@@ -1,4 +1,5 @@
 // src/app/api/files/route.ts
+
 import { NextRequest } from 'next/server'
 import path from 'path'
 import * as grpc from '@grpc/grpc-js'
@@ -14,12 +15,11 @@ const packageDef = protoLoader.loadSync(PROTO_PATH, {
   oneofs: true,
 })
 const grpcPackage = grpc.loadPackageDefinition(packageDef) as any
-const grpcClient = new grpcPackage.agent.AgentService(
-  'localhost:50052',
-  grpc.credentials.createInsecure()
-)
+const AgentService = grpcPackage.agent.AgentService
 
-export async function GET(req: NextRequest) {
+const client = new AgentService('localhost:50052', grpc.credentials.createInsecure())
+
+export async function GET(_req: NextRequest) {
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
   const encoder = new TextEncoder()
@@ -30,46 +30,45 @@ export async function GET(req: NextRequest) {
       closed = true
       try {
         await writer.close()
-      } catch (err) {
+      } catch {
         console.warn('[SSE] Writer already closed.')
       }
     }
   }
 
   try {
-    const call = grpcClient.StreamData(
-      { user_id: 'genpod', tab: 'code' },
-      (err: any) => {
-        if (err) {
-          console.error('gRPC error:', err)
-        }
-      }
-    )
+    const call = client.StreamData({ user_id: 'genpod', tab: 'code' })
 
     call.on('data', (message: any) => {
       const eventType = message.type
       const payload = message.json_payload
 
       try {
-        const event = `event: ${eventType}\ndata: ${JSON.stringify(JSON.parse(payload))}\n\n`
-        writer.write(encoder.encode(event))
+        const data = JSON.stringify(JSON.parse(payload)) // ensure valid JSON
+        const sseEvent = `event: ${eventType}\ndata: ${data}\n\n`
+        writer.write(encoder.encode(sseEvent))
       } catch (err) {
         console.error('[SSE] Failed to stringify payload:', err)
       }
     })
 
     call.on('end', () => {
+      console.log('[gRPC] Stream ended')
       safeClose()
     })
 
     call.on('error', async (err: any) => {
       console.error('❌ gRPC error:', err)
-      writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`))
+      await writer.write(
+        encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`)
+      )
       await safeClose()
     })
   } catch (err: any) {
-    console.error('Server route error:', err)
-    writer.write(encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`))
+    console.error('❌ Server route error:', err)
+    await writer.write(
+      encoder.encode(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`)
+    )
     await safeClose()
   }
 
