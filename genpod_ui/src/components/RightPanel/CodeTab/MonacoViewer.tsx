@@ -20,6 +20,7 @@ export default function MonacoViewer({
   isWorkflowComplete: boolean
 }) {
   const [language, setLanguage] = useState<string>('plaintext')
+  const [pendingContent, setPendingContent] = useState<string | null>(null)
   const editorRef = useRef<Monaco | null>(null)
   const { setFileContent, addEventSource, removeEventSource } = useFileStore()
   const backendUrl = 'http://localhost:8000'
@@ -27,6 +28,11 @@ export default function MonacoViewer({
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor
     console.log('[MonacoViewer] Editor mounted for:', filePath)
+
+    if (pendingContent) {
+      updateEditorContent(pendingContent)
+      setPendingContent(null)
+    }
   }
 
   const handleEditorWillUnmount = () => {
@@ -35,7 +41,11 @@ export default function MonacoViewer({
   }
 
   const updateEditorContent = (content: string) => {
-    if (!editorRef.current) return
+    if (!editorRef.current) {
+      setPendingContent(content)
+      return
+    }
+
     const model = editorRef.current.getModel()
     if (!model) return
 
@@ -48,11 +58,23 @@ export default function MonacoViewer({
 
   const loadFileViaREST = async () => {
     try {
-      const response = await fetch(`${backendUrl}/api/file-content?file=${encodeURIComponent(filePath)}`, {
-        method: 'GET',
-        credentials: 'include',
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const response = await fetch(
+        `${backendUrl}/api/file-content?file=${encodeURIComponent(filePath)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      )
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`[MonacoViewer] File not found: ${filePath}`)
+          setFileContent(filePath, null, 'File not found')
+          return
+        }
+        throw new Error(`HTTP ${response.status}`)
+      }
+
       const data = await response.json()
       if (data.content) {
         setFileContent(filePath, data.content, null)
@@ -138,6 +160,15 @@ export default function MonacoViewer({
     }
   }, [filePath, isWorkflowComplete])
 
+  // 🔁 This must come *after* SSE is set up
+  useEffect(() => {
+    // Recover from missed SSE updates (file was created before tab was opened)
+    if (!isWorkflowComplete) {
+      console.log(`[MonacoViewer] Fetching content for ${filePath} as fallback during SSE`)
+      loadFileViaREST()
+    }
+  }, [filePath])
+
   useEffect(() => {
     const ext = filePath.split('.').pop()?.toLowerCase()
     const languageMap: Record<string, string> = {
@@ -160,6 +191,14 @@ export default function MonacoViewer({
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-gray-400">Loading file content...</div>
+      </div>
+    )
+  }
+
+  if (fileContent.error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-red-500">{fileContent.error}</div>
       </div>
     )
   }

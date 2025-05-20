@@ -3,6 +3,8 @@ import json
 import uuid
 import logging
 import asyncio
+from dotenv import load_dotenv
+
 from pathlib import Path
 from typing import List, Dict
 from fastapi import APIRouter, Request, HTTPException
@@ -10,13 +12,15 @@ from fastapi.responses import StreamingResponse
 from ...services.file_system import FileSystemService
 from ...services.sse_manager import sse_manager
 from server.agent_server import workflow_state
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Get the project root directory
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-file_system = FileSystemService(str(PROJECT_ROOT))
+project_path = os.getenv("PROJECT_PATH")
+if not project_path:
+    raise ValueError("❌ PROJECT_PATH is not set in .env file")
+file_system = FileSystemService(project_path)
 
 @router.get("/files/tree")
 async def get_file_tree():

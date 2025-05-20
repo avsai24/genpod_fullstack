@@ -19,7 +19,7 @@ class FileSystemService:
 
     def get_file_tree(self) -> Dict:
         """Generate a nested dictionary representing the file tree."""
-        
+
         def build_tree(path: Path) -> Dict:
             if path.is_file():
                 return {
@@ -41,35 +41,32 @@ class FileSystemService:
         return build_tree(self.project_path)
 
     def read_file(self, relative_path: str) -> Optional[str]:
-        """Read file content safely."""
+        """Read file content safely with resolved absolute path."""
         try:
-            # Normalize the path to handle spaces and special characters
-            relative_path = os.path.normpath(relative_path)
-            file_path = self.project_path / relative_path
-            
-            # Ensure the file is within the project directory
-            try:
-                file_path = file_path.resolve()
-                if not str(file_path).startswith(str(self.project_path)):
-                    logger.warning(f"Attempted to access file outside project directory: {relative_path}")
-                    return None
-            except Exception:
-                logger.warning(f"Invalid file path: {relative_path}")
+            # Normalize and resolve the path
+            sanitized_path = os.path.normpath(relative_path)
+            full_path = (self.project_path / sanitized_path).resolve()
+
+            # Security check: ensure path is still inside project
+            if not str(full_path).startswith(str(self.project_path)):
+                logger.warning(f"🚫 Attempted to access outside project: {relative_path}")
                 return None
 
-            if not file_path.exists() or not file_path.is_file():
-                logger.warning(f"File not found: {relative_path}")
+            if not full_path.exists() or not full_path.is_file():
+                logger.warning(f"❌ File not found: {full_path}")
                 return None
 
-            return file_path.read_text(encoding='utf-8')
+            logger.info(f"📖 Reading file: {full_path}")
+            return full_path.read_text(encoding='utf-8')
+
         except Exception as e:
-            logger.error(f"Error reading file {relative_path}: {str(e)}")
+            logger.error(f"❌ Error reading file {relative_path}: {str(e)}", exc_info=True)
             return None
 
     def write_file(self, relative_path: str, content: str) -> bool:
         """Write file content safely."""
         try:
-            file_path = self.project_path / relative_path
+            file_path = (self.project_path / relative_path).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_path.write_text(content, encoding='utf-8')
             return True
@@ -80,7 +77,11 @@ class FileSystemService:
     def delete_file(self, relative_path: str) -> bool:
         """Delete file safely."""
         try:
-            file_path = self.project_path / relative_path
+            file_path = (self.project_path / relative_path).resolve()
+            if not str(file_path).startswith(str(self.project_path)):
+                logger.warning(f"🚫 Unsafe delete attempt: {file_path}")
+                return False
+
             if file_path.exists():
                 if file_path.is_file():
                     file_path.unlink()
@@ -95,8 +96,13 @@ class FileSystemService:
     def move_file(self, old_path: str, new_path: str) -> bool:
         """Move/rename file safely."""
         try:
-            old_full_path = self.project_path / old_path
-            new_full_path = self.project_path / new_path
+            old_full_path = (self.project_path / old_path).resolve()
+            new_full_path = (self.project_path / new_path).resolve()
+
+            if not str(old_full_path).startswith(str(self.project_path)) or not str(new_full_path).startswith(str(self.project_path)):
+                logger.warning(f"🚫 Unsafe move attempt: {old_path} → {new_path}")
+                return False
+
             if old_full_path.exists():
                 new_full_path.parent.mkdir(parents=True, exist_ok=True)
                 old_full_path.rename(new_full_path)
@@ -109,7 +115,7 @@ class FileSystemService:
     def get_file_info(self, relative_path: str) -> Optional[Dict]:
         """Get file metadata."""
         try:
-            file_path = self.project_path / relative_path
+            file_path = (self.project_path / relative_path).resolve()
             if not file_path.exists():
                 return None
             return {
@@ -121,4 +127,4 @@ class FileSystemService:
             }
         except Exception as e:
             logger.error(f"Error getting file info for {relative_path}: {str(e)}")
-            return None 
+            return None
