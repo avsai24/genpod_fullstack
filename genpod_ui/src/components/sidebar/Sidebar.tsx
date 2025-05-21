@@ -15,6 +15,7 @@ import ProjectList from './project/ProjectList'
 import TasksList from './tasks/TasksList'
 import ProfileMenu from './profile/ProfileMenu'
 import { useState } from 'react'
+import GlobalUsageModal from './global_usage_settings/GlobalUsageModal'
 
 export default function Sidebar() {
   const router = useRouter()
@@ -24,6 +25,7 @@ export default function Sidebar() {
   const userId = session?.user?.id
 
   const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [showGlobalModal, setShowGlobalModal] = useState(false)
 
   const isHovered = useSidebarStore((s) => s.isHovered)
   const setHovered = useSidebarStore((s) => s.setHovered)
@@ -109,12 +111,12 @@ export default function Sidebar() {
             setIsCreating={setIsCreatingProject}
           />
         )}
-        {/* User Preferences (simple link) */}
+        {/* Global Usage Settings (simple link) */}
         <SidebarIcon
           icon={<Settings size={20} />}
-          label="User Preferences"
+          label="Global Usage Settings"
           isHovered={isHovered}
-          onClick={() => router.push('/settings')}
+          onClick={() => setShowGlobalModal(true)}
         />
 
         {/* Tasks */}
@@ -140,6 +142,10 @@ export default function Sidebar() {
           onSignOut={() => signOut({ callbackUrl: '/login' })}
         />
       </div>
+            <GlobalUsageModal
+        open={showGlobalModal}
+        onClose={() => setShowGlobalModal(false)}
+      />
     </div>
   )
 }

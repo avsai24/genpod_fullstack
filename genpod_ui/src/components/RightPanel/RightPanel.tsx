@@ -5,14 +5,17 @@ import CodeView from './CodeTab/CodeTab'
 import PreviewView from './PreviewTab/PreviewView'
 import ConfigureTab from './ConfigureTab/ConfigureTab'
 import InsightsTab from './InsightsTab/InsightsTab'
+import CodeViewTab from './CodeViewTab/CodeViewTab'
 import {
   Code2,
   Eye,
   Settings,
-  Lightbulb
+  Lightbulb,
+  Waypoints
 } from 'lucide-react'
 
-const TABS = ['Code', 'Preview', 'Configure', 'Insights'] as const
+const TABS = ['Code', 'Preview', 'Configure', 'Insights', 'CodeView'] as const
+
 type Tab = (typeof TABS)[number]
 
 export default function RightPanel() {
@@ -28,6 +31,8 @@ export default function RightPanel() {
         return <ConfigureTab />
       case 'Insights':
         return <InsightsTab />
+      case 'CodeView': 
+        return <CodeViewTab />
     }
   }
 
@@ -41,6 +46,8 @@ export default function RightPanel() {
         return <Settings size={16} />
       case 'Insights':
         return <Lightbulb size={16} />
+      case 'CodeView':
+        return <Waypoints size={16} />
     }
   }
 

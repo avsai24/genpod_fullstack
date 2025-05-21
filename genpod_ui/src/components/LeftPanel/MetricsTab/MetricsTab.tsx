@@ -27,20 +27,24 @@ type MetricsData = {
 
 export default function MetricsTab() {
   const metrics = useAgentStreamStore(s => s.metrics)
+  const lastMetrics = useAgentStreamStore(s => s.lastMetrics)
   const setMetrics = useAgentStreamStore(s => s.setMetrics)
-  
+  const setLastMetrics = useAgentStreamStore(s => s.setLastMetrics)
+
   const [isConnected, setIsConnected] = useState(false)
   const [history, setHistory] = useState<number[]>([])
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
   const prompt = useAgentStreamStore((s) => s.prompt)
   const workflowComplete = useAgentStreamStore((s) => s.workflow?.completed)
 
+  const data = metrics || lastMetrics
+
   useEffect(() => {
-    
     if (!prompt) {
       setIsConnected(false)
       return
     }
+
     const eventSource = new EventSource('/api/metrics')
     setIsConnected(true)
 
@@ -49,6 +53,7 @@ export default function MetricsTab() {
         const data = JSON.parse(event.data)
         if (data.metrics) {
           setMetrics(data.metrics)
+          setLastMetrics(data.metrics)
 
           const completion = data.metrics.project_overview.find((m: Metric) => m.name === 'Completion (%)')
           if (completion) {
@@ -86,22 +91,20 @@ export default function MetricsTab() {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto p-6 space-y-8 text-sm text-textPrimary bg-background custom-scrollbar">
-      {/* <h2 className="text-2xl font-bold text-textPrimary">Real-Time Metrics</h2> */}
-
       {!prompt ? (
         <div className="flex-1 flex items-center justify-center text-sm text-textSecondary">
           No workflow yet. Start with a prompt to see metrics.
         </div>
-      ) : !isConnected && !metrics ? (
+      ) : !isConnected && !data ? (
         <p className="text-textSecondary animate-pulse">Connecting to metrics agent...</p>
-      ) : metrics ? (
+      ) : data ? (
         <div className="space-y-6">
-          <CollapsibleSection title="Project Overview" rows={metrics.project_overview} history={history} open={openSections["overview"]} toggle={() => toggle("overview")} />
-          <CollapsibleSection title="Planned Tasks" rows={metrics.planned_tasks} open={openSections["planned"]} toggle={() => toggle("planned")} />
-          <CollapsibleSection title="Issues" rows={metrics.issues} open={openSections["issues"]} toggle={() => toggle("issues")} />
-          <CollapsibleSection title="Agent State" rows={metrics.agent_state} open={openSections["agent"]} toggle={() => toggle("agent")} />
-          <CollapsibleSection title="Token Summary" rows={metrics.token_summary} open={openSections["summary"]} toggle={() => toggle("summary")} />
-          <ModelTable rows={metrics.token_by_model} />
+          <CollapsibleSection title="Project Overview" rows={data.project_overview} history={history} open={openSections["overview"]} toggle={() => toggle("overview")} />
+          <CollapsibleSection title="Planned Tasks" rows={data.planned_tasks} open={openSections["planned"]} toggle={() => toggle("planned")} />
+          <CollapsibleSection title="Issues" rows={data.issues} open={openSections["issues"]} toggle={() => toggle("issues")} />
+          <CollapsibleSection title="Agent State" rows={data.agent_state} open={openSections["agent"]} toggle={() => toggle("agent")} />
+          <CollapsibleSection title="Token Summary" rows={data.token_summary} open={openSections["summary"]} toggle={() => toggle("summary")} />
+          <ModelTable rows={data.token_by_model} />
           {!isConnected && (
             <p className="text-xs text-textSecondary mt-4">Workflow is complete. Showing last known metrics snapshot.</p>
           )}

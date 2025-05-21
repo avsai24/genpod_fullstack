@@ -13,7 +13,7 @@ const config: Config = {
         textSecondary: '#A1A1AA',
         border: '#2A2A2A',
         accent: '#3B82F6',
-        accentHover: '#2563EB',
+        accentHover: '#0d9488',
         success: '#22C55E',
         warning: '#EAB308',
         error: '#EF4444',
@@ -29,4 +29,4 @@ const config: Config = {
   ],
   plugins: [],
 }
-export default config  // ✅ <-- Add this line
+export default config  

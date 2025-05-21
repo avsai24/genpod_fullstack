@@ -56,6 +56,7 @@ interface AgentStreamStore {
   answerChunks: string[]
   isStreaming: boolean
   metrics: MetricsData | null
+  lastMetrics: MetricsData | null
 
   setPrompt: (prompt: string) => void
   setWorkflow: (workflow: WorkflowState) => void
@@ -64,6 +65,7 @@ interface AgentStreamStore {
   updateNodePosition: (nodeId: string, position: { x: number; y: number }) => void
   toggleLayoutLock: () => void
   setMetrics: (data: MetricsData) => void
+  setLastMetrics: (data: MetricsData) => void
   startAgentStream: (message: string) => Promise<void>
   reset: () => void
 }
@@ -86,10 +88,13 @@ export const useAgentStreamStore = create<AgentStreamStore>((set, get) => ({
   answerChunks: [],
   isStreaming: false,
   metrics: null,
+  lastMetrics: null,
 
   setPrompt: (prompt) => set({ prompt }),
   setWorkflow: (workflow) => set({ workflow }),
   setMetrics: (data) => set({ metrics: data }),
+  setLastMetrics: (data) => set({ lastMetrics: data }),
+
   addLog: (log) => set((state) => ({ logs: [...state.logs, log] })),
   pushAnswerChunk: (chunk) =>
     set((state) => ({ answerChunks: [...state.answerChunks, chunk] })),
@@ -186,7 +191,7 @@ export const useAgentStreamStore = create<AgentStreamStore>((set, get) => ({
                 } else if (eventType === 'workflow') {
                   set({ workflow: data })
                 } else if (eventType === 'metrics') {
-                  set({ metrics: data })
+                  set({ metrics: data, lastMetrics: data }) 
                 }
 
               } catch (err) {
@@ -214,5 +219,6 @@ export const useAgentStreamStore = create<AgentStreamStore>((set, get) => ({
       answerChunks: [],
       isStreaming: false,
       metrics: null,
+      lastMetrics: null,
     }),
 }))
