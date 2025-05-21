@@ -51,6 +51,7 @@ async def check_user(req: Request):
                         "message": "User found",
                         "user_id": db_id,
                         "username": db_username,
+                        "email": email,
                         "provider": stored_provider,
                     },
                     status_code=200

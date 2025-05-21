@@ -9,6 +9,8 @@ import os
 import asyncio
 import re
 import concurrent.futures
+import networkx as nx
+from networkx.readwrite import json_graph
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -193,7 +195,6 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
         
         elif request.tab == "metrics":
             print("[Metrics] Streaming metrics data...")
-
             while workflow_state.is_active():
                 data = {
                     "project_overview": [
@@ -266,6 +267,7 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
             print("[Metrics] Workflow complete. Final metrics sent. Closing stream.")
             return
         
+        
         elif request.tab == "insights":
             print("[Insights] Streaming insights data...")
             while True:
@@ -298,6 +300,33 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                     json_payload=json.dumps(data)
                 )
                 time.sleep(2)
+        
+        elif request.tab == "codeview":
+            print("[CodeView] Generating dummy Code Property Graph...")
+
+            # Step 1: Create graph
+            G = nx.DiGraph()
+            G.add_node("main", label="main()", category="function")
+            G.add_node("foo", label="foo()", category="function")
+            G.add_node("bar", label="bar()", category="function")
+            G.add_node("x", label="x", category="variable")
+
+            G.add_edge("main", "foo", type="calls")
+            G.add_edge("main", "bar", type="calls")
+            G.add_edge("foo", "x", type="uses")
+
+            # Step 2: Convert to JSON-compatible format
+            graph_data = json_graph.node_link_data(G)
+
+            # Step 3: Yield the data once
+            yield agent_pb2.AgentResponse(
+                type="codeview",
+                json_payload=json.dumps(graph_data)
+            )
+
+            # Step 4: Keep stream open (no new data, just support SSE)
+            while workflow_state.is_active():
+                time.sleep(5)
         
         else:
             yield agent_pb2.AgentResponse(
