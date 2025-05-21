@@ -302,32 +302,55 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 time.sleep(2)
         
         elif request.tab == "codeview":
-            print("[CodeView] Generating dummy Code Property Graph...")
+            print("[CodeView] Streaming Movie Graph from Neo4j...")
 
-            # Step 1: Create graph
+            from neo4j import GraphDatabase
+            import networkx as nx
+            from networkx.readwrite import json_graph
+
+            uri = os.getenv("NEO4J_URL")
+            username = os.getenv("NEO4J_USERNAME")
+            password = os.getenv("NEO4J_PASSWORD")
+
+            driver = GraphDatabase.driver(uri, auth=(username, password))
             G = nx.DiGraph()
-            G.add_node("main", label="main()", category="function")
-            G.add_node("foo", label="foo()", category="function")
-            G.add_node("bar", label="bar()", category="function")
-            G.add_node("x", label="x", category="variable")
 
-            G.add_edge("main", "foo", type="calls")
-            G.add_edge("main", "bar", type="calls")
-            G.add_edge("foo", "x", type="uses")
+            try:
+                with driver.session() as session:
+                    result = session.run("""
+                        MATCH (p:Person)-[r:ACTED_IN]->(m:Movie)
+                        RETURN p, r, m
+                    """)
 
-            # Step 2: Convert to JSON-compatible format
-            graph_data = json_graph.node_link_data(G)
+                    for record in result:
+                        person = record["p"]
+                        movie = record["m"]
+                        rel = record["r"]
 
-            # Step 3: Yield the data once
-            yield agent_pb2.AgentResponse(
-                type="codeview",
-                json_payload=json.dumps(graph_data)
-            )
+                        person_name = person["name"]
+                        movie_title = movie["title"]
 
-            # Step 4: Keep stream open (no new data, just support SSE)
-            while workflow_state.is_active():
-                time.sleep(5)
-        
+                        G.add_node(person_name, label="Person")
+                        G.add_node(movie_title, label="Movie")
+                        G.add_edge(person_name, movie_title, type="ACTED_IN")
+
+                graph_data = json_graph.node_link_data(G)
+
+                yield agent_pb2.AgentResponse(
+                    type="codeview",
+                    json_payload=json.dumps(graph_data)
+                )
+
+                while workflow_state.is_active():
+                    time.sleep(5)
+
+            except Exception as e:
+                print(f"[CodeView] Error loading movie graph: {e}")
+                yield agent_pb2.AgentResponse(
+                    type="codeview",
+                    json_payload=json.dumps({"error": str(e)})
+                )
+                
         else:
             yield agent_pb2.AgentResponse(
                 type="error",
