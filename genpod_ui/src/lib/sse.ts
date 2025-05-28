@@ -8,7 +8,13 @@ export function createSSEStream() {
     writer.write(encoder.encode(payload))
   }
 
-  const close = () => writer.close()
+  const close = async () => {
+    try {
+      await writer.close()
+    } catch (err) {
+      console.warn("⚠️ SSE writer already closed or errored:", err)
+    }
+  }
 
   return {
     readable: stream.readable,

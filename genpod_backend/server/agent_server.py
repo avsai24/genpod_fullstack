@@ -11,6 +11,7 @@ import re
 import concurrent.futures
 import networkx as nx
 from networkx.readwrite import json_graph
+from neo4j import GraphDatabase
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -301,38 +302,46 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                 )
                 time.sleep(2)
         
+        
         elif request.tab == "codeview":
-            print("[CodeView] Streaming Movie Graph from Neo4j...")
+            print("[CodeView] Streaming Graph from Neo4j...")
 
-            from neo4j import GraphDatabase
-            import networkx as nx
-            from networkx.readwrite import json_graph
-
-            uri = os.getenv("NEO4J_URL")
-            username = os.getenv("NEO4J_USERNAME")
-            password = os.getenv("NEO4J_PASSWORD")
+            uri = os.getenv("NEO4J_URL", "bolt://localhost:7687")
+            username = os.getenv("NEO4J_USERNAME", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "password")
 
             driver = GraphDatabase.driver(uri, auth=(username, password))
             G = nx.DiGraph()
 
+            def process_node(node):
+                node_id = node.element_id
+                label = list(node.labels)[0] if node.labels else "Unknown"
+                props = dict(node.items())
+                display_name = props.get("name") or props.get("title") or f"{label} {node_id}"
+
+                # Avoid duplicate "name" key
+                props.pop("name", None)
+                props.pop("title", None)
+
+                G.add_node(node_id, label=label, name=display_name, **props)
+                return node_id
+
             try:
                 with driver.session() as session:
                     result = session.run("""
-                        MATCH (p:Person)-[r:ACTED_IN]->(m:Movie)
-                        RETURN p, r, m
+                        MATCH (n)-[r]->(m)
+                        RETURN n, r, m
                     """)
 
                     for record in result:
-                        person = record["p"]
-                        movie = record["m"]
-                        rel = record["r"]
+                        n = record["n"]
+                        m = record["m"]
+                        r = record["r"]
 
-                        person_name = person["name"]
-                        movie_title = movie["title"]
+                        id1 = process_node(n)
+                        id2 = process_node(m)
 
-                        G.add_node(person_name, label="Person")
-                        G.add_node(movie_title, label="Movie")
-                        G.add_edge(person_name, movie_title, type="ACTED_IN")
+                        G.add_edge(id1, id2, type=r.type)
 
                 graph_data = json_graph.node_link_data(G)
 
@@ -345,12 +354,13 @@ class AgentService(agent_pb2_grpc.AgentServiceServicer):
                     time.sleep(5)
 
             except Exception as e:
-                print(f"[CodeView] Error loading movie graph: {e}")
+                print(f"[CodeView] Error loading graph: {e}")
                 yield agent_pb2.AgentResponse(
                     type="codeview",
                     json_payload=json.dumps({"error": str(e)})
                 )
-                
+                        
+        
         else:
             yield agent_pb2.AgentResponse(
                 type="error",

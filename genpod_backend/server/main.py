@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.workspace.configure import profile, settings
 
 from .api.workspace import chat_stream, files
-
+from .api.neo4j import codeview_query
 from .api.projects import create_project, list_projects, rename_project, delete_project
 
 from .api.tasks import create_task, list_tasks, rename_task, delete_task
@@ -75,6 +75,7 @@ app.include_router(create_task.router, prefix="/api")
 app.include_router(list_tasks.router, prefix="/api")
 app.include_router(rename_task.router, prefix="/api")
 app.include_router(delete_task.router, prefix="/api")
+app.include_router(codeview_query.router, prefix="/api")
 
 # Health check endpoint
 @app.get("/health")

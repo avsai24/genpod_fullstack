@@ -1,0 +1,115 @@
+[
+  {
+    "elementType": "relationship",
+    "label": "CONTAINS",
+    "property": "File",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Function",
+      "Class"
+    ]
+  },
+  {
+    "elementType": "relationship",
+    "label": "CALLS",
+    "property": "Function",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Function"
+    ]
+  },
+  {
+    "elementType": "relationship",
+    "label": "CREATED",
+    "property": "Class",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "relationship",
+    "label": "USES",
+    "property": "Class",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "relationship",
+    "label": "INHERITS_FROM",
+    "property": "Class",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "File",
+    "property": "name",
+    "type": "STRING",
+    "other": []
+  },
+  {
+    "elementType": "node",
+    "label": "File",
+    "property": "CONTAINS",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Function",
+      "Class"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "Class",
+    "property": "name",
+    "type": "STRING",
+    "other": []
+  },
+  {
+    "elementType": "node",
+    "label": "Class",
+    "property": "INHERITS_FROM",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "Class",
+    "property": "CREATED",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "Class",
+    "property": "USES",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Class"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "Function",
+    "property": "CALLS",
+    "type": "RELATIONSHIP",
+    "other": [
+      "Function"
+    ]
+  },
+  {
+    "elementType": "node",
+    "label": "Function",
+    "property": "name",
+    "type": "STRING",
+    "other": []
+  }
+]
