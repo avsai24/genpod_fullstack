@@ -1,0 +1,21 @@
+entryPoints:
+  web:
+    address: ":80"
+
+  websecure:
+    address: ":443"
+
+  traefik:
+    address: ":8081"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: DEBUG
+
+api:
+  dashboard: true
+  insecure: true

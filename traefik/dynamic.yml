@@ -1,0 +1,51 @@
+http:
+  routers:
+    auth:
+      rule: "Host(`localhost`) && PathPrefix(`/api/auth`)"
+      entryPoints:
+        - web
+        - websecure
+      service: frontend
+      priority: 10
+      tls: true
+      middlewares:
+        - ratelimit
+
+    backend:
+      rule: "Host(`localhost`) && PathPrefix(`/api`)"
+      entryPoints:
+        - web
+        - websecure
+      service: backend
+      priority: 5
+      tls: true
+      middlewares:
+        - ratelimit
+
+    frontend:
+      rule: "Host(`localhost`)"
+      entryPoints:
+        - web
+        - websecure
+      service: frontend
+      priority: 1
+      tls: true
+      middlewares:
+        - ratelimit
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"
+
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8000"
+
+  middlewares:
+    ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
