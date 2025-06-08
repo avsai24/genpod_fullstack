@@ -1,37 +1,65 @@
 http:
   routers:
+    # Next.js SSE & REST endpoints
+    nextjs-chat:
+      rule: "Host(`localhost`) && PathPrefix(`/api/chat/stream`)"
+      entryPoints: [web, websecure]
+      service: frontend
+      priority: 15
+      tls: true
+
+    nextjs-metrics:
+      rule: "Host(`localhost`) && PathPrefix(`/api/metrics`)"
+      entryPoints: [web, websecure]
+      service: frontend
+      priority: 15
+      tls: true
+
+    nextjs-codeview-query:
+      rule: "Host(`localhost`) && PathPrefix(`/api/codeview-query`)"
+      entryPoints: [web, websecure]
+      service: frontend
+      priority: 15
+      tls: true
+
+    nextjs-codeview:
+      rule: "Host(`localhost`) && PathPrefix(`/api/codeview`)"
+      entryPoints: [web, websecure]
+      service: frontend
+      priority: 14   # slightly lower so /api/codeview-query (priority 15) wins first
+      tls: true
+
+    nextjs-preview:
+      rule: "Host(`localhost`) && PathPrefix(`/api/preview`)"
+      entryPoints: [web, websecure]
+      service: frontend
+      priority: 15
+      tls: true
+
+    # your existing routers
     auth:
       rule: "Host(`localhost`) && PathPrefix(`/api/auth`)"
-      entryPoints:
-        - web
-        - websecure
+      entryPoints: [web, websecure]
       service: frontend
       priority: 10
       tls: true
-      middlewares:
-        - ratelimit
+      middlewares: [ratelimit]
 
     backend:
       rule: "Host(`localhost`) && PathPrefix(`/api`)"
-      entryPoints:
-        - web
-        - websecure
+      entryPoints: [web, websecure]
       service: backend
       priority: 5
       tls: true
-      middlewares:
-        - ratelimit
+      middlewares: [ratelimit]
 
     frontend:
       rule: "Host(`localhost`)"
-      entryPoints:
-        - web
-        - websecure
+      entryPoints: [web, websecure]
       service: frontend
       priority: 1
       tls: true
-      middlewares:
-        - ratelimit
+      middlewares: [ratelimit]
 
   services:
     frontend:
@@ -49,3 +77,16 @@ http:
       rateLimit:
         average: 100
         burst: 50
+
+tcp:
+  routers:
+    grpc-router:
+      entryPoints: [grpc]
+      rule: "HostSNI(`*`)"
+      service: grpc-service
+
+  services:
+    grpc-service:
+      loadBalancer:
+        servers:
+          - address: "host.docker.internal:5052"

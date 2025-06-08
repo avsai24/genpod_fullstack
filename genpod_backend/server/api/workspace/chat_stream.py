@@ -5,15 +5,15 @@ from server.agent_engine import run_agent_workflow
 print("📞 chat_stream.py loaded")
 router = APIRouter()
 
-def stream_agent_response(prompt: str):
-    def event_stream():
+async def stream_agent_response(prompt: str):
+    async def event_stream():
         context = {}
 
         try:
             yield f"data: Supervisor started on: {prompt}\n\n"
 
-            # ✅ Stream each line from agent workflow
-            for line in run_agent_workflow(prompt, context):
+            # ✅ Async loop if it's an async generator
+            async for line in run_agent_workflow(prompt, context):
                 for subline in str(line).splitlines():
                     yield f"data: {subline}\n\n"
 
@@ -28,4 +28,4 @@ def stream_agent_response(prompt: str):
 @router.get("/stream")
 async def chat_stream(req: Request):
     prompt = req.query_params.get("message", "")
-    return stream_agent_response(prompt)
+    return await stream_agent_response(prompt)

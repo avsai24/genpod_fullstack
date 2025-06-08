@@ -453,7 +453,7 @@ async def serve():
     server = grpc.aio.server()
     agent_pb2_grpc.add_ChatServiceServicer_to_server(ChatService(), server)
     agent_pb2_grpc.add_AgentServiceServicer_to_server(AgentService(), server)
-    server.add_insecure_port('[::]:50052')
+    server.add_insecure_port('[::]:5052')
     await server.start()
     print("✅ Unified gRPC server running at http://localhost:50052")
     await server.wait_for_termination()

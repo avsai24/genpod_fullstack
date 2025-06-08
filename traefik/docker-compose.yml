@@ -5,9 +5,10 @@ services:
     image: traefik:v3.0
     container_name: traefik
     ports:
-      - "80:80"       # HTTP
-      - "443:443"     # HTTPS
-      - "8081:8081"   # Dashboard
+      - "80:80"
+      - "443:443"
+      - "8081:8081"
+      - "50052:50052"   # ✅ Add this
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml
       - ./dynamic.yml:/etc/traefik/dynamic.yml
@@ -17,6 +18,7 @@ services:
       - "--api.insecure=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.grpc.address=:50052"   # ✅ Needed if not in traefik.yml
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--log.level=DEBUG"
       - "--certificatesResolvers.devresolver.acme.tlsChallenge=true"

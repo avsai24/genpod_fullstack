@@ -8,6 +8,9 @@ entryPoints:
   traefik:
     address: ":8081"
 
+  grpc:
+    address: ":50052"
+
 providers:
   file:
     filename: /etc/traefik/dynamic.yml
