@@ -250,3 +250,19 @@ venv) (base) venkatasaiancha@Venkatasais-MacBook-Air traefik % docker run -d \
 and
 
 (venv) (base) venkatasaiancha@Mac traefik % docker compose up -d
+
+
+# ===================================================================================================
+
+## How to run genpod.
+
+1) Run the Docker containers for traefik and neo4j database.
+
+2) Run Frontend:
+   - go to genpod_ui and run - npm run dev 
+   
+3) Run Backend:
+   - go to genpod_backend and run - uvicorn server.main:app --reload
+   ((venv) (base) venkatasaiancha@Mac genpod_backend % uvicorn server.main:app --reload)
+   - again same on genpod_backend and run - PYTHONPATH=. python server/agent_server.py
+   ((venv) (base) venkatasaiancha@Mac genpod_backend % PYTHONPATH=. python server/agent_server.py)
