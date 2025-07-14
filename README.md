@@ -231,3 +231,22 @@ This project is proprietary software. All rights reserved.
 =======
 *Note: This documentation is based on the current state of the codebase and may be updated as the project evolves.* 
 >>>>>>> aa161b1cfb50df1ad1ab591e538219bcf65c9c9a
+
+
+# incase docker container is lost.
+
+venv) (base) venkatasaiancha@Venkatasais-MacBook-Air traefik % docker run -d \
+  --name my-neo4j \
+  -p7474:7474 -p7687:7687 \
+  -v /Users/venkatasaiancha/neo4j/data:/data \
+  -v /Users/venkatasaiancha/neo4j/logs:/logs \
+  -e NEO4J_AUTH=neo4j/ABCabc@12345! \
+  -e NEO4J_PLUGINS='["apoc"]' \
+  neo4j:5.11
+409313eec9c9d52c45ddcf3ea7ee7ed1a8b37bfeec18fd445768a24601375212
+
+
+
+and
+
+(venv) (base) venkatasaiancha@Mac traefik % docker compose up -d
