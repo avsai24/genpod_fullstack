@@ -256,7 +256,7 @@ and
 
 ## How to run genpod.
 
-1) Run the Docker containers for traefik and neo4j database.
+1) Run the Docker containers for traefik and neo4j database, and also install multiple sqlite DBs (one for users management and other for product usage configuration settings) as first steps.
 
 2) Run Frontend:
    - go to genpod_ui and run - npm run dev 
