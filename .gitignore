@@ -1,8 +1,8 @@
 # === FRONTEND (Next.js) ===
 genpod_ui/node_modules/
 genpod_ui/.next/
-genpod_ui/.env
-genpod_ui/.env.local
+#genpod_ui/.env
+#genpod_ui/.env.local
 genpod_ui/.vercel/
 genpod_ui/.DS_Store
 genpod_ui/package-lock.json
@@ -13,7 +13,7 @@ genpod_backend/venv/
 genpod_backend/__pycache__/
 genpod_backend/server/**/__pycache__/
 genpod_backend/server/**/**/*.pyc
-genpod_backend/.env
+#genpod_backend/.env
 genpod_backend/settings.db
 genpod_backend/*.db
 genpod_backend/.DS_Store
